@@ -1,16 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../state/app_state.dart';
+import '../repositories/convo_repository.dart';
+import '../repositories/pro_repository.dart';
 import '../theme/app_theme.dart';
+import '../viewmodels/archived_view_model.dart';
 import '../widgets/chat_row.dart';
-import 'chat_thread_screen.dart';
+import 'chat_thread_view.dart';
 
-class ArchivedScreen extends StatelessWidget {
-  const ArchivedScreen({super.key});
+class ArchivedView extends StatelessWidget {
+  const ArchivedView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
+    return ChangeNotifierProvider(
+      create: (ctx) => ArchivedViewModel(
+        ctx.read<ConvoRepository>(),
+        ctx.read<ProRepository>(),
+      ),
+      child: const _ArchivedBody(),
+    );
+  }
+}
+
+class _ArchivedBody extends StatelessWidget {
+  const _ArchivedBody();
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<ArchivedViewModel>();
     return Scaffold(
       backgroundColor: AppColors.app,
       body: SafeArea(
@@ -41,14 +58,23 @@ class ArchivedScreen extends StatelessWidget {
             Expanded(
               child: ListView(
                 children: [
-                  for (final c in state.archivedConvos)
+                  for (final c in vm.archivedConvos)
                     ChatRow(
                       convo: c,
-                      pro: c.proId != null ? state.pros[c.proId] : null,
+                      pro: vm.proFor(c),
                       onTap: () {
-                        state.openConvo(c.id);
+                        vm.openConvo(c.id);
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const ChatThreadScreen()),
+                          MaterialPageRoute(builder: (_) => ChatThreadView(convoId: c.id)),
+                        );
+                      },
+                      onUnarchive: () {
+                        vm.unarchive(c.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Moved "${c.title}" to chats'),
+                            behavior: SnackBarBehavior.floating,
+                          ),
                         );
                       },
                     ),

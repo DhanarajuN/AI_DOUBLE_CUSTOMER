@@ -5,15 +5,29 @@ import '../theme/app_theme.dart';
 
 class ChatRow extends StatelessWidget {
   final Convo convo;
-  final Pro? pro; // resolved by caller from AppState.pros[convo.proId]
+  final Pro? pro; // resolved by caller's ViewModel from ProRepository.getById(convo.proId)
   final VoidCallback onTap;
-  const ChatRow({super.key, required this.convo, required this.onTap, this.pro});
+  final VoidCallback? onLongPress;
+
+  /// When set, shows a trailing "move to chats" action (used by the
+  /// Archived screen to unarchive a conversation). Left null elsewhere.
+  final VoidCallback? onUnarchive;
+
+  const ChatRow({
+    super.key,
+    required this.convo,
+    required this.onTap,
+    this.pro,
+    this.onLongPress,
+    this.onUnarchive,
+  });
 
   @override
   Widget build(BuildContext context) {
     final unread = convo.unread > 0;
     return InkWell(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
         child: Row(
@@ -107,6 +121,14 @@ class ChatRow extends StatelessWidget {
                 ),
               ),
             ),
+            if (onUnarchive != null) ...[
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.move_to_inbox_outlined, color: AppColors.dim, size: 20),
+                tooltip: 'Move to chats',
+                onPressed: onUnarchive,
+              ),
+            ],
           ],
         ),
       ),

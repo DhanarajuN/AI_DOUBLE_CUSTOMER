@@ -1,54 +1,35 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../models/chat_message.dart';
 import '../models/convo.dart';
 import '../models/pro.dart';
-import '../data/pros_data.dart';
-import '../data/scripts_data.dart';
+import 'script_repository.dart';
 
-/// Simple in-memory equivalent of the `state` object + all the top-level
-/// functions in customer.html's <script> tag (pushMe, advanceIntake,
-/// finishIntake, handleFollowup, sendMsg, chatWithPro, toggleSave,
-/// confirmBooking, persist, etc). No local persistence layer is wired up
-/// (the HTML used localStorage) — swap in shared_preferences/hive here if
-/// you want the chats to survive an app restart.
-class AppState extends ChangeNotifier {
-  final Map<String, Pro> pros = kPros;
-  final Map<String, CategoryScript> scripts = kScripts;
-  final Map<String, CategoryMeta> categoryMeta = kCategoryMeta;
+/// Single in-memory source of truth for conversations, bookings and saved
+/// professionals — shared across every screen, since e.g. a message sent in
+/// the thread view must update that conversation's preview in the list view.
+///
+/// No local persistence layer is wired up yet — swap in shared_preferences
+/// /hive/a remote API behind this same interface if you want chats to
+/// survive an app restart or come from a backend.
+class ConvoRepository extends ChangeNotifier {
+  final ScriptRepository scriptRepository;
 
-  late List<Convo> convos;
-  List<String> savedProIds = ['ramesh'];
-  List<Booking> bookings = [];
-
-  Convo? activeConvo;
-  String? currentProId;
-  String? selectedSlot;
-
-  /// Whether the AI "typing…" indicator should show in the active thread.
-  bool isTyping = false;
-
-  /// Quick-reply chips currently shown above the composer (mirrors #qr).
-  List<String> chips = [];
-  bool get showChips => chips.isNotEmpty;
-
-  /// hideQR() — used by the UI when the person taps 'Type my own' or
-  /// 'New request', both of which are intercepted before quickReplyTap().
-  void hideChips() {
-    chips = [];
-    notifyListeners();
-  }
-
-  AppState() {
+  ConvoRepository(this.scriptRepository) {
     convos = _seedConvos();
   }
 
-  // ---------------------------------------------------------------------
-  // Derived lists
-  // ---------------------------------------------------------------------
+  late List<Convo> convos;
+  List<String> savedProIds = ['ramesh'];
+  final List<Booking> bookings = [];
+
   List<Convo> get visibleConvos => convos.where((c) => !c.archived).toList();
   List<Convo> get archivedConvos => convos.where((c) => c.archived).toList();
   int get archivedCount => archivedConvos.length;
+
+  Convo getById(String id) => convos.firstWhere((c) => c.id == id);
+
+  bool isSaved(String proId) => savedProIds.contains(proId);
 
   String get nowLabel {
     final d = DateTime.now();
@@ -56,28 +37,30 @@ class AppState extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------
-  // Opening conversations
+  // Opening / creating conversations
   // ---------------------------------------------------------------------
 
-  /// openConvo(id) — open an existing chat (AI thread or pro thread).
-  void openConvo(String id) {
-    final c = convos.firstWhere((x) => x.id == id);
-    activeConvo = c;
+  /// Marks a conversation as read once its thread is opened.
+  void markRead(String convoId) {
+    final c = getById(convoId);
     if (c.unread > 0) {
       c.unread = 0;
+      notifyListeners();
     }
-    if (c.isAI && c.complete) {
-      final s = scripts[c.category]!;
-      chips = [...s.after, 'New request'];
-    } else {
-      chips = [];
-    }
+  }
+
+  /// Moves a conversation between the main list and Archived.
+  void setArchived(String convoId, bool archived) {
+    final c = getById(convoId);
+    if (c.archived == archived) return;
+    c.archived = archived;
     notifyListeners();
   }
 
-  /// startIntake(cat) — "New request" -> pick a category -> begin a fresh
-  /// AI-guided intake conversation.
-  void startIntake(String category) {
+  /// "New request" -> pick a category -> begin a fresh AI-guided intake
+  /// conversation. Returns the new conversation's id so the caller can
+  /// navigate to its thread.
+  String startIntake(String category) {
     final id = 'n${DateTime.now().millisecondsSinceEpoch}';
     final c = Convo(
       id: id,
@@ -91,24 +74,23 @@ class AppState extends ChangeNotifier {
       step: -1,
     );
     convos.insert(0, c);
-    activeConvo = c;
-    chips = [];
     notifyListeners();
 
-    final script = scripts[category]!;
+    final script = scriptRepository.getScript(category);
     _aiSay(c, script.greet, onDone: () {
       c.step = 0;
-      chips = [...script.steps[0].chips, 'Type my own'];
+      c.chips = [...script.steps[0].chips, 'Type my own'];
       notifyListeners();
     });
+    return id;
   }
 
-  /// chatWithPro(id) — open (or create) a direct 1:1 chat with a professional.
-  void chatWithPro(String proId) {
-    final p = pros[proId]!;
+  /// Opens (or creates) a direct 1:1 chat with a professional. Returns the
+  /// conversation id so the caller can navigate to its thread.
+  String chatWithPro(Pro pro) {
     Convo? c;
     for (final x in convos) {
-      if (x.proId == proId && !x.isAI) {
+      if (x.proId == pro.id && !x.isAI) {
         c = x;
         break;
       }
@@ -117,11 +99,11 @@ class AppState extends ChangeNotifier {
       c = Convo(
         id: 'p${DateTime.now().millisecondsSinceEpoch}',
         category: 'insurance',
-        title: p.name,
+        title: pro.name,
         isAI: false,
         time: 'now',
         preview: 'You: Hi, I found you via AI Double',
-        proId: proId,
+        proId: pro.id,
       );
       c.messages.add(const ChatMessage.dayMark('TODAY'));
       c.messages.add(ChatMessage.text(
@@ -130,45 +112,36 @@ class AppState extends ChangeNotifier {
         time: nowLabel,
       ));
       convos.insert(0, c);
+      notifyListeners();
+
+      final convo = c;
+      Timer(const Duration(milliseconds: 700), () {
+        _aiSay(convo, 'Hi! Thanks for reaching out. How can I help you today?');
+      });
     }
-    activeConvo = c;
-    chips = [];
-    notifyListeners();
-
-    Timer(const Duration(milliseconds: 700), () {
-      _aiSay(c!, 'Hi! Thanks for reaching out. How can I help you today?');
-    });
-  }
-
-  void closeChat() {
-    activeConvo = null;
-    chips = [];
-    notifyListeners();
+    return c.id;
   }
 
   // ---------------------------------------------------------------------
   // Sending messages / intake flow
   // ---------------------------------------------------------------------
 
-  /// Called when the user taps a quick-reply chip. The UI intercepts the
-  /// special 'Type my own' and 'New request' chips before calling this
-  /// (mirrors the top of qrTap() in customer.html).
-  void quickReplyTap(String label) {
-    final c = activeConvo;
-    if (c == null) return;
+  /// Called when the user taps a quick-reply chip.
+  void quickReplyTap(String convoId, String label) {
+    final c = getById(convoId);
     if (c.complete) {
-      handleFollowup(label);
+      handleFollowup(convoId, label);
       return;
     }
     _pushMe(c, label);
     _advanceIntake(c);
   }
 
-  /// sendMsg() — free-text message from the composer.
-  void sendMsg(String text) {
+  /// Free-text message from the composer.
+  void sendMsg(String convoId, String text) {
     final t = text.trim();
-    final c = activeConvo;
-    if (t.isEmpty || c == null) return;
+    if (t.isEmpty) return;
+    final c = getById(convoId);
     _pushMe(c, t);
     if (c.live && !c.complete) {
       _advanceIntake(c);
@@ -183,23 +156,46 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Once pros are revealed, user taps a follow-up chip.
+  void handleFollowup(String convoId, String label) {
+    final c = getById(convoId);
+    _pushMe(c, label);
+    Timer(const Duration(milliseconds: 300), () {
+      _aiSay(
+        c,
+        'Sure — tap either professional above to see details, compare or book. Want me to draft your requirement to send them?',
+        onDone: () {
+          c.chips = ['Yes, draft it', 'No thanks', 'New request'];
+          notifyListeners();
+        },
+      );
+    });
+  }
+
+  /// Used when the person taps 'Type my own' or 'New request', both of
+  /// which are intercepted by the View before calling quickReplyTap().
+  void hideChips(String convoId) {
+    getById(convoId).chips = [];
+    notifyListeners();
+  }
+
   void _pushMe(Convo c, String text) {
     c.messages.add(ChatMessage.text(text: text, isMe: true, time: nowLabel));
     c.preview = text;
     c.lastFromMe = true;
     c.time = 'now';
-    chips = []; // hideQR()
+    c.chips = [];
     notifyListeners();
   }
 
   void _advanceIntake(Convo c) {
-    final s = scripts[c.category]!;
+    final s = scriptRepository.getScript(c.category);
     final step = (c.step >= 0 && c.step < s.steps.length) ? s.steps[c.step] : null;
     if (step != null && step.ask != null) {
       _aiSay(c, step.ask!, onDone: () {
         c.step++;
         if (c.step < s.steps.length) {
-          chips = [...s.steps[c.step].chips, 'Type my own'];
+          c.chips = [...s.steps[c.step].chips, 'Type my own'];
           notifyListeners();
         } else {
           _finishIntake(c);
@@ -211,40 +207,23 @@ class AppState extends ChangeNotifier {
   }
 
   void _finishIntake(Convo c) {
-    final s = scripts[c.category]!;
+    final s = scriptRepository.getScript(c.category);
     _aiSayProList(c, s.reveal, s.proIds, onDone: () {
       c.complete = true;
       c.live = false;
       c.preview = '${s.reveal.substring(0, s.reveal.length > 42 ? 42 : s.reveal.length)}…';
       c.lastFromMe = false;
-      chips = [...s.after, 'New request'];
+      c.chips = [...s.after, 'New request'];
       notifyListeners();
-    });
-  }
-
-  /// handleFollowup(x) — once pros are revealed, user taps a follow-up chip.
-  void handleFollowup(String x) {
-    final c = activeConvo;
-    if (c == null) return;
-    _pushMe(c, x);
-    Timer(const Duration(milliseconds: 300), () {
-      _aiSay(
-        c,
-        'Sure — tap either professional above to see details, compare or book. Want me to draft your requirement to send them?',
-        onDone: () {
-          chips = ['Yes, draft it', 'No thanks', 'New request'];
-          notifyListeners();
-        },
-      );
     });
   }
 
   /// Simulates the AI "typing…" delay, then appends a plain text bubble.
   void _aiSay(Convo c, String text, {VoidCallback? onDone, String? time}) {
-    isTyping = true;
+    c.isTyping = true;
     notifyListeners();
     Timer(const Duration(milliseconds: 850), () {
-      isTyping = false;
+      c.isTyping = false;
       c.messages.add(ChatMessage.text(text: text, isMe: false, time: time ?? nowLabel));
       c.preview = text.length > 42 ? '${text.substring(0, 42)}…' : text;
       c.lastFromMe = false;
@@ -256,10 +235,10 @@ class AppState extends ChangeNotifier {
 
   /// Same as [_aiSay] but appends a matched-pro-cards bubble.
   void _aiSayProList(Convo c, String text, List<String> proIds, {VoidCallback? onDone}) {
-    isTyping = true;
+    c.isTyping = true;
     notifyListeners();
     Timer(const Duration(milliseconds: 850), () {
-      isTyping = false;
+      c.isTyping = false;
       c.messages.add(ChatMessage.proList(text: text, time: nowLabel, proIds: proIds));
       notifyListeners();
       onDone?.call();
@@ -267,43 +246,21 @@ class AppState extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------
-  // Archive
+  // Saved professionals / bookings
   // ---------------------------------------------------------------------
-  void openArchived() {
-    notifyListeners();
-  }
-
-  // ---------------------------------------------------------------------
-  // Profile / save / booking
-  // ---------------------------------------------------------------------
-  void openProfile(String proId) {
-    currentProId = proId;
-    notifyListeners();
-  }
-
-  bool get isCurrentProSaved => savedProIds.contains(currentProId);
-
-  void toggleSave() {
-    final id = currentProId;
-    if (id == null) return;
-    if (savedProIds.contains(id)) {
-      savedProIds.remove(id);
+  void toggleSave(String proId) {
+    if (savedProIds.contains(proId)) {
+      savedProIds.remove(proId);
     } else {
-      savedProIds.add(id);
+      savedProIds.add(proId);
     }
     notifyListeners();
   }
 
-  void pickSlot(String slot) {
-    selectedSlot = slot;
-    notifyListeners();
-  }
-
-  /// confirmBooking() — returns true if a slot was selected & booking made.
-  bool confirmBooking() {
-    final id = currentProId;
-    if (id == null || selectedSlot == null) return false;
-    bookings.insert(0, Booking(proId: id, slot: selectedSlot!));
+  /// Returns true if the booking was recorded.
+  bool confirmBooking(String proId, String? slot) {
+    if (slot == null) return false;
+    bookings.insert(0, Booking(proId: proId, slot: slot));
     notifyListeners();
     return true;
   }
@@ -312,9 +269,9 @@ class AppState extends ChangeNotifier {
   // Seed data — mirrors the initial CONVOS array + buildCompletedThread()
   // ---------------------------------------------------------------------
   List<Convo> _seedConvos() {
-    final insurance = scripts['insurance']!;
-    final education = scripts['education']!;
-    final home = scripts['home']!;
+    final insurance = scriptRepository.getScript('insurance');
+    final education = scriptRepository.getScript('education');
+    final home = scriptRepository.getScript('home');
 
     final c1 = Convo(
       id: 'c1',
@@ -443,7 +400,7 @@ class AppState extends ChangeNotifier {
       const ChatMessage.dayMark('12 JUNE'),
       ChatMessage.text(text: education.greet, isMe: false, time: '10:00'),
       ChatMessage.text(text: 'Grade 12 Maths', isMe: true, time: '10:01'),
-      ChatMessage.proList(text: 'I found a great match for you.', time: '10:02', proIds: ['sri']),
+      ChatMessage.proList(text: 'I found a great match for you.', time: '10:02', proIds: const ['sri']),
       ChatMessage.text(text: 'Thanks!', isMe: true, time: '10:05'),
       ChatMessage.text(text: 'Glad I could help. Anything else?', isMe: false, time: '10:05'),
     ]);

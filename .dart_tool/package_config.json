@@ -266,13 +266,13 @@
       "languageVersion": "3.3"
     },
     {
-      "name": "ai_double",
+      "name": "ai_double_customer",
       "rootUri": "../",
       "packageUri": "lib/",
       "languageVersion": "3.0"
     }
   ],
-  "generated": "2026-07-07T10:03:47.720681Z",
+  "generated": "2026-07-07T10:33:02.034673Z",
   "generator": "pub",
   "generatorVersion": "3.4.4",
   "flutterRoot": "file:///D:/software/flutter_windows_3.22.3-stable/flutter",

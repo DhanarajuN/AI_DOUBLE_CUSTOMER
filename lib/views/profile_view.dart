@@ -1,25 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/pro.dart';
-import '../state/app_state.dart';
+import '../repositories/convo_repository.dart';
+import '../repositories/pro_repository.dart';
 import '../theme/app_theme.dart';
+import '../viewmodels/profile_view_model.dart';
 import '../widgets/booking_sheet.dart';
-import 'chat_thread_screen.dart';
+import 'chat_thread_view.dart';
 
-class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
-
-  @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen> {
-  final Set<int> _openFaqs = {};
+class ProfileView extends StatelessWidget {
+  final String proId;
+  const ProfileView({super.key, required this.proId});
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
-    final Pro? pro = state.currentProId != null ? state.pros[state.currentProId] : null;
+    return ChangeNotifierProvider(
+      create: (ctx) => ProfileViewModel(
+        ctx.read<ConvoRepository>(),
+        ctx.read<ProRepository>(),
+        proId: proId,
+      ),
+      child: const _ProfileBody(),
+    );
+  }
+}
+
+class _ProfileBody extends StatefulWidget {
+  const _ProfileBody();
+
+  @override
+  State<_ProfileBody> createState() => _ProfileBodyState();
+}
+
+class _ProfileBodyState extends State<_ProfileBody> {
+  final Set<int> _openFaqs = {};
+
+  void _openThread(BuildContext context, ProfileViewModel vm) {
+    final convoId = vm.chatWithPro();
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatThreadView(convoId: convoId)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<ProfileViewModel>();
+    final Pro? pro = vm.pro;
     if (pro == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (Navigator.canPop(context)) Navigator.pop(context);
@@ -48,12 +72,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Expanded(child: Text('Profile', style: AppFonts.display(size: 19))),
                   IconButton(
                     icon: Icon(
-                      state.isCurrentProSaved ? Icons.bookmark : Icons.bookmark_border,
-                      color: state.isCurrentProSaved ? AppColors.gold : AppColors.dim,
+                      vm.isSaved ? Icons.bookmark : Icons.bookmark_border,
+                      color: vm.isSaved ? AppColors.gold : AppColors.dim,
                     ),
                     onPressed: () {
-                      final wasSaved = state.isCurrentProSaved;
-                      state.toggleSave();
+                      final wasSaved = vm.isSaved;
+                      vm.toggleSave();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(wasSaved ? 'Removed from saved' : 'Saved ${pro.name}'),
@@ -208,10 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       backgroundColor: AppColors.panel,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    onPressed: () {
-                      state.chatWithPro(pro.id);
-                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChatThreadScreen()));
-                    },
+                    onPressed: () => _openThread(context, vm),
                     child: const Icon(Icons.chat_bubble_outline, color: AppColors.text, size: 20),
                   ),
                   const SizedBox(width: 10),
@@ -226,12 +247,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onPressed: () {
                         showBookingSheet(
                           context: context,
-                          state: state,
+                          viewModel: vm,
                           pro: pro,
-                          onOpenChat: () {
-                            state.chatWithPro(pro.id);
-                            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChatThreadScreen()));
-                          },
+                          onOpenChat: () => _openThread(context, vm),
                         );
                       },
                       child: Text('Book · ${pro.price}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),

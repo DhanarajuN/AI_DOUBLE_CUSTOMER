@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import '../data/scripts_data.dart';
 import '../models/pro.dart';
-import '../state/app_state.dart';
 import '../theme/app_theme.dart';
+import '../viewmodels/profile_view_model.dart';
 
 /// Shows the booking flow as a modal bottom sheet: pick a slot, add an
 /// optional note, confirm -> success screen -> "Open chat" hands off to
 /// the pro's 1:1 thread (mirrors openBooking/confirmBooking/afterBooking).
 Future<void> showBookingSheet({
   required BuildContext context,
-  required AppState state,
+  required ProfileViewModel viewModel,
   required Pro pro,
   required VoidCallback onOpenChat,
 }) {
-  state.selectedSlot = null;
+  viewModel.selectedSlot = null;
   _justConfirmed = false;
   return showModalBottomSheet(
     context: context,
@@ -62,9 +62,9 @@ Future<void> showBookingSheet({
                       crossAxisSpacing: 8,
                       childAspectRatio: 1.7,
                       children: kSlots.map((s) {
-                        final on = state.selectedSlot == s;
+                        final on = viewModel.selectedSlot == s;
                         return InkWell(
-                          onTap: () => setSheetState(() => state.pickSlot(s)),
+                          onTap: () => setSheetState(() => viewModel.pickSlot(s)),
                           borderRadius: BorderRadius.circular(10),
                           child: Container(
                             alignment: Alignment.center,
@@ -121,13 +121,13 @@ Future<void> showBookingSheet({
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: () {
-                          if (state.selectedSlot == null) {
+                          if (viewModel.selectedSlot == null) {
                             ScaffoldMessenger.of(ctx).showSnackBar(
                               const SnackBar(content: Text('Pick a time first'), behavior: SnackBarBehavior.floating),
                             );
                             return;
                           }
-                          state.confirmBooking();
+                          viewModel.confirmBooking();
                           _justConfirmed = true;
                           setSheetState(() {});
                         },
@@ -145,7 +145,7 @@ Future<void> showBookingSheet({
                     Text('Booking confirmed', style: AppFonts.display(size: 20), textAlign: TextAlign.center),
                     const SizedBox(height: 4),
                     Text(
-                      '${pro.name} · ${state.bookings.first.slot}',
+                      '${pro.name} · ${viewModel.bookings.first.slot}',
                       style: AppFonts.body(size: 13, color: AppColors.dim),
                       textAlign: TextAlign.center,
                     ),

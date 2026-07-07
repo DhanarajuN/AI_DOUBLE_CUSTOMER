@@ -18,6 +18,12 @@ class Convo {
   String? proId; // set when this is a 1:1 chat with a professional
   final List<ChatMessage> messages;
 
+  /// Quick-reply chips currently shown above the composer for this thread.
+  List<String> chips;
+
+  /// Whether the AI "typing…" indicator should show in this thread.
+  bool isTyping;
+
   Convo({
     required this.id,
     required this.category,
@@ -33,7 +39,12 @@ class Convo {
     this.step = -1,
     this.proId,
     List<ChatMessage>? messages,
-  }) : messages = messages ?? [];
+    List<String>? chips,
+    this.isTyping = false,
+  })  : messages = messages ?? [],
+        chips = chips ?? [];
+
+  bool get showChips => chips.isNotEmpty;
 }
 
 /// One step of an intake script: quick-reply chips shown, and (optionally)

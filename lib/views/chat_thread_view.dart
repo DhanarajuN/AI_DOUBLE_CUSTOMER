@@ -1,20 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/chat_message.dart';
-import '../state/app_state.dart';
+import '../repositories/convo_repository.dart';
+import '../repositories/pro_repository.dart';
 import '../theme/app_theme.dart';
+import '../viewmodels/chat_thread_view_model.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/new_request_sheet.dart';
-import 'profile_screen.dart';
+import 'profile_view.dart';
 
-class ChatThreadScreen extends StatefulWidget {
-  const ChatThreadScreen({super.key});
+class ChatThreadView extends StatelessWidget {
+  final String convoId;
+  const ChatThreadView({super.key, required this.convoId});
 
   @override
-  State<ChatThreadScreen> createState() => _ChatThreadScreenState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (ctx) => ChatThreadViewModel(
+        ctx.read<ConvoRepository>(),
+        ctx.read<ProRepository>(),
+        convoId: convoId,
+      ),
+      child: const _ChatThreadBody(),
+    );
+  }
 }
 
-class _ChatThreadScreenState extends State<ChatThreadScreen> {
+class _ChatThreadBody extends StatefulWidget {
+  const _ChatThreadBody();
+
+  @override
+  State<_ChatThreadBody> createState() => _ChatThreadBodyState();
+}
+
+class _ChatThreadBodyState extends State<_ChatThreadBody> {
   final _scrollCtrl = ScrollController();
   final _inputCtrl = TextEditingController();
   final _focusNode = FocusNode();
@@ -31,30 +50,30 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     });
   }
 
-  Future<void> _handleChipTap(AppState state, String label) async {
+  Future<void> _handleChipTap(ChatThreadViewModel vm, String label) async {
     if (label == 'Type my own') {
-      state.hideChips();
+      vm.hideChips();
       _focusNode.requestFocus();
       return;
     }
     if (label == 'New request') {
-      state.hideChips();
+      vm.hideChips();
       final category = await showNewRequestSheet(context);
       if (category != null) {
-        state.startIntake(category);
+        vm.startNewRequest(category);
         _scrollToBottom();
       }
       return;
     }
-    state.quickReplyTap(label);
+    vm.quickReplyTap(label);
     _scrollToBottom();
   }
 
-  void _send(AppState state) {
+  void _send(ChatThreadViewModel vm) {
     final text = _inputCtrl.text;
     if (text.trim().isEmpty) return;
     _inputCtrl.clear();
-    state.sendMsg(text);
+    vm.sendMsg(text);
     _scrollToBottom();
   }
 
@@ -68,17 +87,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
-    final convo = state.activeConvo;
-    if (convo == null) {
-      // Nothing active (e.g. hot-reloaded straight into this route) — bail out.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (Navigator.canPop(context)) Navigator.pop(context);
-      });
-      return const Scaffold(backgroundColor: AppColors.app);
-    }
-
-    final pro = convo.proId != null ? state.pros[convo.proId] : null;
+    final vm = context.watch<ChatThreadViewModel>();
+    final convo = vm.convo;
+    final pro = vm.pro;
     _scrollToBottom();
 
     return Scaffold(
@@ -97,10 +108,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                    onPressed: () {
-                      state.closeChat();
-                      Navigator.of(context).pop();
-                    },
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
                   _avatar(convo.isAI, pro),
                   const SizedBox(width: 10),
@@ -149,7 +157,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                 child: ListView.builder(
                   controller: _scrollCtrl,
                   padding: const EdgeInsets.fromLTRB(12, 14, 12, 4),
-                  itemCount: convo.messages.length + (state.isTyping ? 1 : 0),
+                  itemCount: convo.messages.length + (vm.isTyping ? 1 : 0),
                   itemBuilder: (context, i) {
                     if (i == convo.messages.length) {
                       return const TypingIndicator();
@@ -161,11 +169,10 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       case MessageKind.proList:
                         return ProListBubble(
                           message: m,
-                          pros: state.pros,
+                          pros: context.read<ProRepository>().getAll(),
                           onTapPro: (id) {
-                            state.openProfile(id);
                             Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                              MaterialPageRoute(builder: (_) => ProfileView(proId: id)),
                             );
                           },
                         );
@@ -178,7 +185,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
             ),
 
             // ---- quick replies ----
-            if (state.showChips)
+            if (vm.showChips)
               Container(
                 width: double.infinity,
                 color: AppColors.chatBg,
@@ -186,9 +193,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                 child: Wrap(
                   spacing: 7,
                   runSpacing: 7,
-                  children: state.chips.map((chip) {
+                  children: vm.chips.map((chip) {
                     return InkWell(
-                      onTap: () => _handleChipTap(state, chip),
+                      onTap: () => _handleChipTap(vm, chip),
                       borderRadius: BorderRadius.circular(100),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
@@ -225,7 +232,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       focusNode: _focusNode,
                       style: AppFonts.body(size: 14),
                       textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _send(state),
+                      onSubmitted: (_) => _send(vm),
                       decoration: InputDecoration(
                         hintText: 'Message',
                         hintStyle: AppFonts.body(size: 14, color: AppColors.faint),
@@ -249,7 +256,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   ),
                   const SizedBox(width: 8),
                   InkWell(
-                    onTap: () => _send(state),
+                    onTap: () => _send(vm),
                     borderRadius: BorderRadius.circular(21),
                     child: Container(
                       width: 42,

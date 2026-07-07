@@ -1,5 +1,5 @@
-name: ai_double
-description: AI Double - customer chat flow (Flutter port of customer.html)
+name: ai_double_customer
+description: AI Double Customer - MVVM Flutter app (customer chat flow)
 publish_to: 'none'
 version: 1.0.0+1
 

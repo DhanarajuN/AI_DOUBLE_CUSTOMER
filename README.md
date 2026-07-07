@@ -1,10 +1,10 @@
-# AI Double — Flutter port
+# AI Double Customer
 
-A full Flutter port of `customer.html`, covering every flow in the original
-mock: chat list, archived chats, the AI-guided intake conversation (per
-category), matched-professional cards, professional profile with FAQs and
-reviews, save/bookmark, chat-with-professional, and the booking flow
-(slot picker → confirmation → hand-off to chat).
+A Flutter app covering the AI Double customer flow: chat list, archived
+chats, the AI-guided intake conversation (per category), matched-professional
+cards, professional profile with FAQs and reviews, save/bookmark,
+chat-with-professional, and the booking flow (slot picker → confirmation →
+hand-off to chat).
 
 ## Run it
 
@@ -16,49 +16,81 @@ flutter run
 Requires Flutter 3.19+ (Dart 3). Internet access is needed once, for
 `flutter pub get` to fetch `provider` and `google_fonts`.
 
-## Structure
+## Architecture — MVVM
 
 ```
 lib/
-  main.dart                     – app entry point, Provider setup
-  theme/app_theme.dart          – colors & fonts ported from the :root CSS vars
-  models/
-    pro.dart                    – Pro + ProReview + Booking
-    convo.dart                  – Convo, ScriptStep, CategoryScript, CategoryMeta
-    chat_message.dart           – ChatMessage (text / proList / dayMark)
-  data/
-    pros_data.dart              – ported PROS map
-    scripts_data.dart           – ported SCRIPTS map, CATMETA, SLOTS
-  state/
-    app_state.dart              – all app logic (ChangeNotifier):
-                                   startIntake, advanceIntake, finishIntake,
-                                   handleFollowup, sendMsg, chatWithPro,
-                                   toggleSave, confirmBooking, seed data
-  screens/
-    chat_list_screen.dart       – home / chat list + FAB "new request"
-    archived_screen.dart        – archived chats list
-    chat_thread_screen.dart     – AI intake flow, quick replies, composer
-    profile_screen.dart         – pro profile, FAQs, reviews, book/chat CTA
-  widgets/
-    chat_row.dart                – one row in the chat list
-    pro_card.dart                – matched-professional card
-    message_bubble.dart          – text bubble, pro-list bubble, day marker,
-                                    typing indicator
-    booking_sheet.dart           – slot-pick → confirm bottom sheet
-    new_request_sheet.dart       – category picker bottom sheet
+  main.dart                        – app entry point: builds the repositories
+                                      and hands them down via Provider
+  theme/app_theme.dart             – colors & fonts, defined once globally —
+                                      change a value here and the whole app
+                                      picks it up (see "Theme & fonts" below)
+  models/                          – Model: plain data classes
+    pro.dart                       – Pro, ProReview, Booking
+    convo.dart                     – Convo (owns its own chips/isTyping),
+                                      ScriptStep, CategoryScript, CategoryMeta
+    chat_message.dart              – ChatMessage (text / proList / dayMark)
+  data/                            – static datasources (today's "backend")
+    pros_data.dart                 – kPros
+    scripts_data.dart              – kScripts, kCategoryMeta, kSlots
+  repositories/                    – data-access layer, hides where data
+                                      comes from behind an interface
+    pro_repository.dart            – ProRepository + StaticProRepository
+    script_repository.dart         – ScriptRepository + StaticScriptRepository
+    convo_repository.dart          – ConvoRepository: shared, mutable source
+                                      of truth for convos/bookings/saved pros
+                                      (ChangeNotifier), holds the intake/chat
+                                      business logic
+  viewmodels/                      – ViewModel: one per screen, exposes only
+                                      what that screen's View needs and
+                                      forwards commands to the repositories
+    chat_list_view_model.dart
+    chat_thread_view_model.dart
+    archived_view_model.dart
+    profile_view_model.dart
+  views/                           – View: pure UI, watches its ViewModel
+    chat_list_view.dart
+    archived_view.dart
+    chat_thread_view.dart
+    profile_view.dart
+  widgets/                         – shared, mostly stateless UI pieces
+    chat_row.dart, pro_card.dart, message_bubble.dart,
+    booking_sheet.dart, new_request_sheet.dart
 ```
+
+**Data flow:** View → ViewModel → Repository. Views never read `lib/data`
+directly and never hold business logic; ViewModels never know whether a
+repository is backed by the static in-memory maps in `lib/data/` or a real
+API.
+
+## Swapping static data for a real API
+
+Right now `StaticProRepository` / `StaticScriptRepository` just return the
+maps from `lib/data/`, and `ConvoRepository` keeps everything in memory. When
+a backend is ready:
+
+1. Add e.g. `ApiProRepository implements ProRepository` that calls your HTTP
+   client instead of reading `kPros`.
+2. Swap the `Provider<ProRepository>(create: (_) => StaticProRepository())`
+   line in `main.dart` for the new implementation.
+
+No ViewModel, View, or widget needs to change — they only depend on the
+`ProRepository` / `ScriptRepository` interfaces.
+
+## Theme & fonts (global)
+
+`lib/theme/app_theme.dart` is the single place colors (`AppColors`) and text
+styles (`AppFonts`, `buildAppTheme()`) are defined. Every screen and widget
+pulls from there, so changing a color or font in that one file re-themes the
+entire app.
 
 ## Notes / things you may want to change
 
-- **Persistence**: the original HTML persisted to `localStorage`. This port
-  keeps everything in memory (`AppState`) for simplicity — add
-  `shared_preferences` or `hive` in `AppState` if you want chats/bookings to
-  survive an app restart.
-- **Fonts**: uses `google_fonts` for Fraunces / Inter Tight / JetBrains Mono,
-  matching the `<link>` tags in the HTML `<head>`. Swap for bundled fonts if
-  you'd rather not fetch them at runtime.
+- **Persistence**: everything lives in memory (`ConvoRepository`) —
+  add `shared_preferences`/`hive` behind the same repository interfaces if
+  you want chats/bookings to survive an app restart.
+- **Fonts**: uses `google_fonts` for Fraunces / Inter Tight / JetBrains Mono.
+  Swap for bundled fonts in `app_theme.dart` if you'd rather not fetch them
+  at runtime.
 - **Toasts**: mapped to `ScaffoldMessenger` SnackBars.
-- **Navigation**: mapped the HTML's sliding `.screen` panels to
-  `Navigator.push` with the default Material page transition (slide from
-  right), which reproduces the same feel as `.screen.active { transform:
-  translateX(0) }`.
+- **Navigation**: `Navigator.push` with the default Material page transition.

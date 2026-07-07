@@ -73,5 +73,18 @@ ThemeData buildAppTheme() {
     ),
     splashFactory: NoSplash.splashFactory,
     highlightColor: Colors.transparent,
+    // Toast/snackbar look, defined once here so every ScaffoldMessenger
+    // .showSnackBar(...) call in the app gets a readable, on-brand toast
+    // without needing to repeat colors at each call site.
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: AppColors.panel2,
+      contentTextStyle: AppFonts.body(size: 13.5, color: AppColors.text),
+      actionTextColor: AppColors.teal,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: AppColors.line),
+      ),
+    ),
   );
 }

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'screens/chat_list_screen.dart';
-import 'state/app_state.dart';
+import 'repositories/convo_repository.dart';
+import 'repositories/pro_repository.dart';
+import 'repositories/script_repository.dart';
 import 'theme/app_theme.dart';
+import 'views/chat_list_view.dart';
 
 void main() {
   runApp(const AiDoubleApp());
@@ -13,13 +15,23 @@ class AiDoubleApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AppState(),
+    return MultiProvider(
+      providers: [
+        // Data layer — swap these for API-backed implementations later;
+        // nothing above this layer needs to change.
+        Provider<ProRepository>(create: (_) => StaticProRepository()),
+        Provider<ScriptRepository>(create: (_) => StaticScriptRepository()),
+        ChangeNotifierProvider<ConvoRepository>(
+          create: (ctx) => ConvoRepository(ctx.read<ScriptRepository>()),
+        ),
+      ],
       child: MaterialApp(
-        title: 'AI Double',
+        title: 'AI Double Customer',
         debugShowCheckedModeBanner: false,
+        // Global theme/fonts (lib/theme/app_theme.dart) — change once here
+        // and the whole app updates.
         theme: buildAppTheme(),
-        home: const ChatListScreen(),
+        home: const ChatListView(),
       ),
     );
   }
