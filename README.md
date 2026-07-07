@@ -56,6 +56,11 @@ lib/
   widgets/                         – shared, mostly stateless UI pieces
     chat_row.dart, pro_card.dart, message_bubble.dart,
     booking_sheet.dart, new_request_sheet.dart
+  services/
+    api_client.dart                – shared GET/POST/PUT HTTP wrapper with
+                                      access-token support, for Api*Repository
+                                      implementations to use once a backend
+                                      is ready
 ```
 
 **Data flow:** View → ViewModel → Repository. Views never read `lib/data`
@@ -66,12 +71,17 @@ API.
 ## Swapping static data for a real API
 
 Right now `StaticProRepository` / `StaticScriptRepository` just return the
-maps from `lib/data/`, and `ConvoRepository` keeps everything in memory. When
-a backend is ready:
+maps from `lib/data/`, and `ConvoRepository` keeps everything in memory.
+`lib/services/api_client.dart` already has the HTTP plumbing ready — a
+`get`/`post`/`put` wrapper that attaches an access token as a `Bearer` header
+and throws `ApiException` on non-2xx responses. When a backend is ready:
 
-1. Add e.g. `ApiProRepository implements ProRepository` that calls your HTTP
-   client instead of reading `kPros`.
-2. Swap the `Provider<ProRepository>(create: (_) => StaticProRepository())`
+1. Set the real `baseUrl` on the `ApiClient` provider in `main.dart`, and call
+   `apiClient.setAccessToken(token)` once you have a token (after login, or on
+   app start if one was restored from storage).
+2. Add e.g. `ApiProRepository implements ProRepository` that calls
+   `_api.get('/pros/$id')` instead of reading `kPros`.
+3. Swap the `Provider<ProRepository>(create: (_) => StaticProRepository())`
    line in `main.dart` for the new implementation.
 
 No ViewModel, View, or widget needs to change — they only depend on the

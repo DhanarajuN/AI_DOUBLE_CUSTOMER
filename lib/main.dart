@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'constants/app_constants.dart';
+import 'constants/server_urls.dart';
 import 'repositories/convo_repository.dart';
 import 'repositories/pro_repository.dart';
 import 'repositories/script_repository.dart';
+import 'services/api_client.dart';
 import 'theme/app_theme.dart';
 import 'views/chat_list_view.dart';
 
@@ -17,6 +20,12 @@ class AiDoubleApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Shared HTTP layer for future Api*Repository implementations —
+        // update baseUrl once the backend is ready.
+        Provider<ApiClient>(
+          create: (_) => ApiClient(baseUrl: ServerUrls.baseUrl),
+          dispose: (_, client) => client.close(),
+        ),
         // Data layer — swap these for API-backed implementations later;
         // nothing above this layer needs to change.
         Provider<ProRepository>(create: (_) => StaticProRepository()),
@@ -26,7 +35,7 @@ class AiDoubleApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'AI Double Customer',
+        title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
         // Global theme/fonts (lib/theme/app_theme.dart) — change once here
         // and the whole app updates.

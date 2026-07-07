@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../constants/app_constants.dart';
 import '../models/chat_message.dart';
 import '../models/convo.dart';
 import '../models/pro.dart';
@@ -115,7 +116,7 @@ class ConvoRepository extends ChangeNotifier {
       notifyListeners();
 
       final convo = c;
-      Timer(const Duration(milliseconds: 700), () {
+      Timer(AppConstants.proGreetDelay, () {
         _aiSay(convo, 'Hi! Thanks for reaching out. How can I help you today?');
       });
     }
@@ -146,11 +147,11 @@ class ConvoRepository extends ChangeNotifier {
     if (c.live && !c.complete) {
       _advanceIntake(c);
     } else if (!c.isAI) {
-      Timer(const Duration(milliseconds: 400), () {
+      Timer(AppConstants.aiReplyDelay, () {
         _aiSay(c, "Thanks, noted! I'll get back to you shortly. 🙂");
       });
     } else {
-      Timer(const Duration(milliseconds: 400), () {
+      Timer(AppConstants.aiReplyDelay, () {
         _aiSay(c, 'Got it — anything else I can help you find?');
       });
     }
@@ -160,7 +161,7 @@ class ConvoRepository extends ChangeNotifier {
   void handleFollowup(String convoId, String label) {
     final c = getById(convoId);
     _pushMe(c, label);
-    Timer(const Duration(milliseconds: 300), () {
+    Timer(AppConstants.aiFollowupDelay, () {
       _aiSay(
         c,
         'Sure — tap either professional above to see details, compare or book. Want me to draft your requirement to send them?',
@@ -222,7 +223,7 @@ class ConvoRepository extends ChangeNotifier {
   void _aiSay(Convo c, String text, {VoidCallback? onDone, String? time}) {
     c.isTyping = true;
     notifyListeners();
-    Timer(const Duration(milliseconds: 850), () {
+    Timer(AppConstants.aiTypingDelay, () {
       c.isTyping = false;
       c.messages.add(ChatMessage.text(text: text, isMe: false, time: time ?? nowLabel));
       c.preview = text.length > 42 ? '${text.substring(0, 42)}…' : text;
@@ -237,7 +238,7 @@ class ConvoRepository extends ChangeNotifier {
   void _aiSayProList(Convo c, String text, List<String> proIds, {VoidCallback? onDone}) {
     c.isTyping = true;
     notifyListeners();
-    Timer(const Duration(milliseconds: 850), () {
+    Timer(AppConstants.aiTypingDelay, () {
       c.isTyping = false;
       c.messages.add(ChatMessage.proList(text: text, time: nowLabel, proIds: proIds));
       notifyListeners();
