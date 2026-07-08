@@ -4,7 +4,9 @@
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'AI Double Customer';
+  // Display name for this (customer-facing) app — the companion
+  // professional-facing app is a separate build with its own name.
+  static const String appName = 'AI Double';
 
   // Simulated AI response timings, used by ConvoRepository — tune once here
   // to make the AI feel snappier/slower across every intake and chat flow.
