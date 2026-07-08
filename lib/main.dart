@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'constants/app_constants.dart';
 import 'constants/server_urls.dart';
+import 'repositories/auth_repository.dart';
 import 'repositories/convo_repository.dart';
 import 'repositories/pro_repository.dart';
 import 'repositories/script_repository.dart';
+import 'routes/app_routes.dart';
 import 'services/api_client.dart';
+import 'services/session_storage.dart';
 import 'theme/app_theme.dart';
-import 'views/chat_list_view.dart';
 
 void main() {
   runApp(const AiDoubleApp());
@@ -23,8 +25,12 @@ class AiDoubleApp extends StatelessWidget {
         // Shared HTTP layer for future Api*Repository implementations —
         // update baseUrl once the backend is ready.
         Provider<ApiClient>(
-          create: (_) => ApiClient(baseUrl: ServerUrls.baseUrl),
+          create: (_) => ApiClient(baseUrl: ServerUrls.baseUrl, tenant: ServerUrls.tenant),
           dispose: (_, client) => client.close(),
+        ),
+        Provider<SessionStorage>(create: (_) => SessionStorage()),
+        ChangeNotifierProvider<AuthRepository>(
+          create: (ctx) => AuthRepository(ctx.read<ApiClient>(), ctx.read<SessionStorage>()),
         ),
         // Data layer — swap these for API-backed implementations later;
         // nothing above this layer needs to change.
@@ -40,7 +46,8 @@ class AiDoubleApp extends StatelessWidget {
         // Global theme/fonts (lib/theme/app_theme.dart) — change once here
         // and the whole app updates.
         theme: buildAppTheme(),
-        home: const ChatListView(),
+        initialRoute: AppRoutes.splash,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
       ),
     );
   }

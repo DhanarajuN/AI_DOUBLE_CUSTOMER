@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/convo.dart';
+import '../repositories/auth_repository.dart';
 import '../repositories/convo_repository.dart';
 import '../repositories/pro_repository.dart';
+import '../routes/app_routes.dart';
 import '../theme/app_theme.dart';
 import '../viewmodels/chat_list_view_model.dart';
 import '../widgets/chat_row.dart';
 import '../widgets/new_request_sheet.dart';
-import 'archived_view.dart';
-import 'chat_thread_view.dart';
 
 class ChatListView extends StatelessWidget {
   const ChatListView({super.key});
@@ -69,9 +69,7 @@ class _ChatListBodyState extends State<_ChatListBody> {
                           pro: vm.proFor(c),
                           onTap: () {
                             vm.openConvo(c.id);
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => ChatThreadView(convoId: c.id)),
-                            );
+                            Navigator.of(context).pushNamed(AppRoutes.chatThread, arguments: c.id);
                           },
                           onLongPress: () => _confirmArchive(context, vm, c),
                         ),
@@ -97,9 +95,7 @@ class _ChatListBodyState extends State<_ChatListBody> {
                         final category = await showNewRequestSheet(context);
                         if (category != null && context.mounted) {
                           final convoId = vm.startIntake(category);
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => ChatThreadView(convoId: convoId)),
-                          );
+                          Navigator.of(context).pushNamed(AppRoutes.chatThread, arguments: convoId);
                         }
                       },
                       child: const Icon(Icons.add, color: Color(0xFF04120D), size: 26),
@@ -171,9 +167,19 @@ class _ChatListBodyState extends State<_ChatListBody> {
             icon: const Icon(Icons.search, color: AppColors.dim),
             onPressed: () => _searchFocus.requestFocus(),
           ),
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: AppColors.dim),
-            onPressed: () => _toast(context, 'Menu'),
+            color: AppColors.panel2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            onSelected: (value) {
+              if (value == 'logout') _confirmLogout(context);
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'logout',
+                child: Text('Log out', style: AppFonts.body(size: 13.5)),
+              ),
+            ],
           ),
         ],
       ),
@@ -228,7 +234,7 @@ class _ChatListBodyState extends State<_ChatListBody> {
   Widget _buildArchiveStrip(BuildContext context, ChatListViewModel vm) {
     return InkWell(
       onTap: () {
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ArchivedView()));
+        Navigator.of(context).pushNamed(AppRoutes.archived);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
@@ -281,6 +287,37 @@ class _ChatListBodyState extends State<_ChatListBody> {
     if (confirmed == true && context.mounted) {
       vm.archive(c.id);
       _toast(context, 'Archived "${c.title}"');
+    }
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.panel,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Log out?', style: AppFonts.display(size: 17)),
+        content: Text(
+          "You'll need to sign in again to access your chats.",
+          style: AppFonts.body(size: 13.5, color: AppColors.dim),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancel', style: AppFonts.body(size: 14, color: AppColors.dim)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Log out', style: AppFonts.body(size: 14, weight: FontWeight.w600, color: AppColors.teal)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      await context.read<AuthRepository>().logout();
+      if (context.mounted) {
+        Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
+      }
     }
   }
 }

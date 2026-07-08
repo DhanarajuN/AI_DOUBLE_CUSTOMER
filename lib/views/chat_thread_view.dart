@@ -3,11 +3,11 @@ import 'package:provider/provider.dart';
 import '../models/chat_message.dart';
 import '../repositories/convo_repository.dart';
 import '../repositories/pro_repository.dart';
+import '../routes/app_routes.dart';
 import '../theme/app_theme.dart';
 import '../viewmodels/chat_thread_view_model.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/new_request_sheet.dart';
-import 'profile_view.dart';
 
 class ChatThreadView extends StatelessWidget {
   final String convoId;
@@ -171,9 +171,7 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
                           message: m,
                           pros: context.read<ProRepository>().getAll(),
                           onTapPro: (id) {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => ProfileView(proId: id)),
-                            );
+                            Navigator.of(context).pushNamed(AppRoutes.profile, arguments: id);
                           },
                         );
                       case MessageKind.text:

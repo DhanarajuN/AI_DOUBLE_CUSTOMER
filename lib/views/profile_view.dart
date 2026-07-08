@@ -3,10 +3,10 @@ import 'package:provider/provider.dart';
 import '../models/pro.dart';
 import '../repositories/convo_repository.dart';
 import '../repositories/pro_repository.dart';
+import '../routes/app_routes.dart';
 import '../theme/app_theme.dart';
 import '../viewmodels/profile_view_model.dart';
 import '../widgets/booking_sheet.dart';
-import 'chat_thread_view.dart';
 
 class ProfileView extends StatelessWidget {
   final String proId;
@@ -37,7 +37,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
 
   void _openThread(BuildContext context, ProfileViewModel vm) {
     final convoId = vm.chatWithPro();
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatThreadView(convoId: convoId)));
+    Navigator.of(context).pushNamed(AppRoutes.chatThread, arguments: convoId);
   }
 
   @override

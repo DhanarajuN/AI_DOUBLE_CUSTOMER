@@ -34,10 +34,11 @@ class ApiException implements Exception {
 /// ```
 class ApiClient {
   final String baseUrl;
+  final String? tenant;
   final http.Client _client;
   String? _accessToken;
 
-  ApiClient({required this.baseUrl, http.Client? client}) : _client = client ?? http.Client();
+  ApiClient({required this.baseUrl, this.tenant, http.Client? client}) : _client = client ?? http.Client();
 
   /// Call after login (or on app start, once a saved token is restored) so
   /// every subsequent request is authenticated. Pass null to log out.
@@ -70,6 +71,7 @@ class ApiClient {
   Map<String, String> _headers() => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        if (tenant != null) 'X-Tenant': tenant!,
         if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
       };
 
@@ -77,7 +79,17 @@ class ApiClient {
     final status = response.statusCode;
     final body = response.body.isEmpty ? null : jsonDecode(response.body);
     if (status < 200 || status >= 300) {
-      final message = (body is Map && body['message'] is String) ? body['message'] as String : (response.reasonPhrase ?? 'Request failed');
+      String? stringField(String key) => body is Map && body[key] is String ? body[key] as String : null;
+      final serverMessage = stringField('msg') ?? stringField('message');
+      final reason = response.reasonPhrase;
+      // reasonPhrase is often an empty string (not null) on HTTP/2 responses,
+      // which have no reason phrase — so a plain `??` fallback misses it and
+      // leaves the error with no visible text.
+      final message = (serverMessage != null && serverMessage.isNotEmpty)
+          ? serverMessage
+          : (reason != null && reason.isNotEmpty)
+              ? reason
+              : 'Request failed with status $status';
       throw ApiException(status, message);
     }
     return body;

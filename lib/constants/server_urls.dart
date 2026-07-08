@@ -7,7 +7,13 @@
 class ServerUrls {
   ServerUrls._();
 
-  static const String baseUrl = 'https://api.example.com';
+  static const String baseUrl = 'https://$tenant.dev.gosure.ai';
+
+  // Sent as the X-Tenant header on every request.
+  static const String tenant = 'amc';
+
+  // Auth
+  static const String login = '/api/v1/users/login';
 
   // Professionals
   static const String pros = '/pros';

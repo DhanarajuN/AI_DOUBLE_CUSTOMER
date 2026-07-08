@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../repositories/convo_repository.dart';
 import '../repositories/pro_repository.dart';
+import '../routes/app_routes.dart';
 import '../theme/app_theme.dart';
 import '../viewmodels/archived_view_model.dart';
 import '../widgets/chat_row.dart';
-import 'chat_thread_view.dart';
 
 class ArchivedView extends StatelessWidget {
   const ArchivedView({super.key});
@@ -64,9 +64,7 @@ class _ArchivedBody extends StatelessWidget {
                       pro: vm.proFor(c),
                       onTap: () {
                         vm.openConvo(c.id);
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => ChatThreadView(convoId: c.id)),
-                        );
+                        Navigator.of(context).pushNamed(AppRoutes.chatThread, arguments: c.id);
                       },
                       onUnarchive: () {
                         vm.unarchive(c.id);
