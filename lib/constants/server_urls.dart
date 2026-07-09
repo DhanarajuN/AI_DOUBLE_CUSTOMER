@@ -1,34 +1,18 @@
-/// Backend base URL + endpoint paths, kept in one place instead of scattered
-/// as string literals through repositories. Point [baseUrl] at the real
-/// backend when it's ready, and pass these paths straight into
-/// ApiClient.get/post/put from an Api*Repository implementation — see
-/// services/api_client.dart and the "Swapping static data for a real API"
-/// section of README.md.
+
 class ServerUrls {
   ServerUrls._();
 
   static const String baseUrl = 'https://$tenant.dev.gosure.ai';
 
-  // Sent as the X-Tenant header on every request.
-  static const String tenant = 'amc';
+  static const String tenant = 'devtesting';
 
-  // Auth
   static const String login = '/api/v1/users/login';
 
-  // Professionals
-  static const String pros = '/pros';
-  static String proById(String id) => '/pros/$id';
+  // LibreChat backend — separate service used only for the background
+  // token login on app start (see services/librechat_service.dart).
+  static const String librechatURL = 'https://librechat-backend-166239710803.asia-south1.run.app';
 
-  // Category intake scripts / metadata / booking slots
-  static const String scripts = '/scripts';
-  static String scriptByCategory(String category) => '/scripts/$category';
-  static const String categoryMeta = '/category-meta';
-  static const String slots = '/slots';
+  static const String librechatLogin = '/api/auth/login';
 
-  // Conversations
-  static const String convos = '/convos';
-  static String convoById(String id) => '/convos/$id';
-
-  // Bookings
-  static const String bookings = '/bookings';
+  static const String librechatAgents = '/api/agents/';
 }

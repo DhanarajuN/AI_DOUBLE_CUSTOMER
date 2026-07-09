@@ -58,10 +58,13 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
     }
     if (label == 'New request') {
       vm.hideChips();
-      final category = await showNewRequestSheet(context);
-      if (category != null) {
-        vm.startNewRequest(category);
-        _scrollToBottom();
+      final agent = await showNewRequestSheet(context);
+      if (agent != null && mounted) {
+        // TODO: wire the picked agent into a real chat flow — for now just
+        // confirm the selection was received.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Selected agent: ${agent['name'] ?? 'Unknown'}')),
+        );
       }
       return;
     }

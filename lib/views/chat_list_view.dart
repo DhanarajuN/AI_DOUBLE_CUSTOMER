@@ -92,10 +92,13 @@ class _ChatListBodyState extends State<_ChatListBody> {
                       backgroundColor: AppColors.teal,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                       onPressed: () async {
-                        final category = await showNewRequestSheet(context);
-                        if (category != null && context.mounted) {
-                          final convoId = vm.startIntake(category);
-                          Navigator.of(context).pushNamed(AppRoutes.chatThread, arguments: convoId);
+                        final agent = await showNewRequestSheet(context);
+                        if (agent != null && context.mounted) {
+                          // TODO: wire the picked agent into a real chat flow —
+                          // for now just confirm the selection was received.
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Selected agent: ${agent['name'] ?? 'Unknown'}')),
+                          );
                         }
                       },
                       child: const Icon(Icons.add, color: Color(0xFF04120D), size: 26),
