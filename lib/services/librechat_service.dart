@@ -58,22 +58,24 @@ class LibreChatService {
     }
   }
 
-  /// Fetches the agent list for the "New request" sheet. Returns the raw
-  /// `data` array from the response — each entry is expected to carry at
-  /// least `name` and `description`.
-  static Future<List<Map<String, dynamic>>> fetchAgents() async {
+  static Future<Map<String, String>> _authHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString(tokenKey);
     final refreshToken = prefs.getString(refreshTokenKey);
-    debugPrint('[LibreChat] fetchAgents -> token present: ${token != null}, refreshToken present: ${refreshToken != null}');
+    return {
+      'User-Agent': _browserUserAgent,
+      if (token != null) 'Authorization': 'Bearer $token',
+      if (refreshToken != null) 'Cookie': 'refreshToken=$refreshToken; token_provider=librechat',
+    };
+  }
 
+  /// Fetches the agent list for the "New request" sheet. Returns the raw
+  /// `data` array from the response — each entry is expected to carry at
+  /// least `id`, `name` and `description`.
+  static Future<List<Map<String, dynamic>>> fetchAgents() async {
     final response = await http.get(
       Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatAgents}'),
-      headers: {
-        'User-Agent': _browserUserAgent,
-        if (token != null) 'Authorization': 'Bearer $token',
-        if (refreshToken != null) 'Cookie': 'refreshToken=$refreshToken; token_provider=librechat',
-      },
+      headers: await _authHeaders(),
     );
     debugPrint('[LibreChat] fetchAgents -> ${response.statusCode}: ${response.body}');
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -83,5 +85,20 @@ class LibreChatService {
     final data = json['data'];
     if (data is! List) return [];
     return data.cast<Map<String, dynamic>>();
+  }
+
+  /// Fetches full detail for one agent (by its `id`, e.g. `agent_xxx`) —
+  /// used to open the agent's chat page with its real name/avatar and
+  /// `conversation_starters`.
+  static Future<Map<String, dynamic>> fetchAgentById(String id) async {
+    final response = await http.get(
+      Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatAgents}$id'),
+      headers: await _authHeaders(),
+    );
+    debugPrint('[LibreChat] fetchAgentById($id) -> ${response.statusCode}: ${response.body}');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to load agent (${response.statusCode}): ${response.body}');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../views/agent_chat_view.dart';
 import '../views/archived_view.dart';
 import '../views/chat_list_view.dart';
 import '../views/chat_thread_view.dart';
@@ -21,6 +22,10 @@ class AppRoutes {
   /// Pass the conversation id as `arguments`.
   static const String chatThread = '/chats/thread';
 
+  /// Pass the full agent detail (from LibreChatService.fetchAgentById) as
+  /// `arguments`.
+  static const String agentThread = '/agents/thread';
+
   /// Pass the professional id as `arguments`.
   static const String profile = '/pro';
 
@@ -37,6 +42,9 @@ class AppRoutes {
       case chatThread:
         final convoId = settings.arguments as String;
         return MaterialPageRoute(builder: (_) => ChatThreadView(convoId: convoId), settings: settings);
+      case agentThread:
+        final agent = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(builder: (_) => AgentChatView(agent: agent), settings: settings);
       case profile:
         final proId = settings.arguments as String;
         return MaterialPageRoute(builder: (_) => ProfileView(proId: proId), settings: settings);

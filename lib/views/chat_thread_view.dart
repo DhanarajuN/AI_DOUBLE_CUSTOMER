@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import '../viewmodels/chat_thread_view_model.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/new_request_sheet.dart';
+import 'agent_chat_view.dart';
 
 class ChatThreadView extends StatelessWidget {
   final String convoId;
@@ -60,11 +61,7 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
       vm.hideChips();
       final agent = await showNewRequestSheet(context);
       if (agent != null && mounted) {
-        // TODO: wire the picked agent into a real chat flow — for now just
-        // confirm the selection was received.
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Selected agent: ${agent['name'] ?? 'Unknown'}')),
-        );
+        await AgentChatView.open(context, agent);
       }
       return;
     }

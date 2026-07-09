@@ -9,6 +9,7 @@ import '../theme/app_theme.dart';
 import '../viewmodels/chat_list_view_model.dart';
 import '../widgets/chat_row.dart';
 import '../widgets/new_request_sheet.dart';
+import 'agent_chat_view.dart';
 
 class ChatListView extends StatelessWidget {
   const ChatListView({super.key});
@@ -94,11 +95,7 @@ class _ChatListBodyState extends State<_ChatListBody> {
                       onPressed: () async {
                         final agent = await showNewRequestSheet(context);
                         if (agent != null && context.mounted) {
-                          // TODO: wire the picked agent into a real chat flow —
-                          // for now just confirm the selection was received.
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Selected agent: ${agent['name'] ?? 'Unknown'}')),
-                          );
+                          await AgentChatView.open(context, agent);
                         }
                       },
                       child: const Icon(Icons.add, color: Color(0xFF04120D), size: 26),
