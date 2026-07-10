@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/server_urls.dart';
+import 'session_storage.dart';
 
 /// Talks to the separate LibreChat backend: a silent login on app start
 /// (see [loginAndCacheToken], fired from [SplashView] with no UI of its
@@ -100,5 +101,86 @@ class LibreChatService {
       throw Exception('Failed to load agent (${response.statusCode}): ${response.body}');
     }
     return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// The AI Double app's own session accessToken (a different auth system
+  /// from LibreChat's), sent as `X-Gosure-Token` so the backend can
+  /// correlate a chat request/stream back to the GoSure user.
+  static Future<String?> _gosureToken() => SessionStorage().readAccessToken();
+
+  /// Sends one message to an agent. Returns the immediate ack
+  /// `{streamId, conversationId, status}` — the actual reply arrives over
+  /// [streamChat], not in this response. Pass `conversationId: null` and
+  /// `parentMessageId: "00000000-0000-0000-0000-000000000000"` for the
+  /// first message in a new conversation; for later turns, pass the
+  /// established conversationId and the previous reply's messageId.
+  static Future<Map<String, dynamic>> sendChatMessage({
+    required String agentId,
+    required String text,
+    required String messageId,
+    required String parentMessageId,
+    String? conversationId,
+  }) async {
+    final headers = await _authHeaders();
+    final gosureToken = await _gosureToken();
+    final response = await http.post(
+      Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatAgentChat}'),
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+        if (gosureToken != null) 'X-Gosure-Token': gosureToken,
+      },
+      body: jsonEncode({
+        'endpoint': 'agents',
+        'agent_id': agentId,
+        'text': text,
+        'messageId': messageId,
+        'parentMessageId': parentMessageId,
+        'conversationId': conversationId,
+        'isContinued': false,
+      }),
+    );
+    debugPrint('[LibreChat] sendChatMessage -> ${response.statusCode}: ${response.body}');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to send message (${response.statusCode}): ${response.body}');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// Opens the SSE stream for a conversation (keyed by the `streamId`
+  /// returned from [sendChatMessage], which in practice equals
+  /// `conversationId`) and yields each event's decoded JSON payload as it
+  /// arrives — `on_message_delta` events carry incremental reply text, and
+  /// the event with `final: true` carries the complete `responseMessage`.
+  static Stream<Map<String, dynamic>> streamChat(String conversationId) async* {
+    final headers = await _authHeaders();
+    final gosureToken = await _gosureToken();
+    final client = http.Client();
+    final request = http.Request(
+      'GET',
+      Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatAgentChatStream}$conversationId'),
+    );
+    request.headers.addAll({
+      ...headers,
+      'Accept': 'text/event-stream',
+      if (gosureToken != null) 'X-Gosure-Token': gosureToken,
+    });
+
+    final response = await client.send(request);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      client.close();
+      throw Exception('Failed to open chat stream (${response.statusCode})');
+    }
+
+    try {
+      await for (final line in response.stream.transform(utf8.decoder).transform(const LineSplitter())) {
+        if (!line.startsWith('data: ')) continue;
+        final jsonStr = line.substring(6);
+        if (jsonStr.isEmpty) continue;
+        yield jsonDecode(jsonStr) as Map<String, dynamic>;
+      }
+    } finally {
+      client.close();
+    }
   }
 }

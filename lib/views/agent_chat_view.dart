@@ -1,7 +1,11 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import '../routes/app_routes.dart';
 import '../services/librechat_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/message_bubble.dart';
 
 /// One entry from an agent's `conversation_starters` (e.g.
 /// `"pi-plus::Make a Claim"`) — icon key plus display label.
@@ -11,11 +15,22 @@ class _Starter {
   const _Starter(this.iconKey, this.label);
 }
 
+/// One message in the live thread with this agent. Mutable so a streaming
+/// assistant reply can grow `text` in place as deltas arrive.
+class _Msg {
+  final bool isMe;
+  String text;
+  final String time;
+  bool isStreaming;
+  _Msg({required this.isMe, required this.text, required this.time, this.isStreaming = false});
+}
+
 /// Chat page for a single LibreChat agent, opened after picking one from
 /// showNewRequestSheet() and fetching its full detail via
 /// LibreChatService.fetchAgentById(). Mirrors ChatThreadView's static
-/// layout, but the app bar (name/avatar) and starter chips are populated
-/// from the real agent response instead of the mock script data.
+/// layout, but the app bar (name/avatar) and starter chips come from the
+/// real agent response, and messages are sent/streamed via
+/// LibreChatService.sendChatMessage/streamChat.
 class AgentChatView extends StatefulWidget {
   final Map<String, dynamic> agent;
   const AgentChatView({super.key, required this.agent});
@@ -59,11 +74,20 @@ class AgentChatView extends StatefulWidget {
 }
 
 class _AgentChatViewState extends State<AgentChatView> {
+  static const _rootParentMessageId = '00000000-0000-0000-0000-000000000000';
+
   final _inputCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+  final _messages = <_Msg>[];
+
+  String? _conversationId;
+  String _parentMessageId = _rootParentMessageId;
+  bool _sending = false;
 
   @override
   void dispose() {
     _inputCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -131,6 +155,162 @@ class _AgentChatViewState extends State<AgentChatView> {
   String _timeNow() {
     final now = DateTime.now();
     return '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+  }
+
+  String _uuidV4() {
+    final rnd = Random.secure();
+    final bytes = List<int>.generate(16, (_) => rnd.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0F) | 0x40;
+    bytes[8] = (bytes[8] & 0x3F) | 0x80;
+    String hex(int start, int end) => bytes.sublist(start, end).map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex(0, 4)}-${hex(4, 6)}-${hex(6, 8)}-${hex(8, 10)}-${hex(10, 16)}';
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _send(String rawText) async {
+    final text = rawText.trim();
+    if (text.isEmpty || _sending) return;
+
+    final agentId = widget.agent['id'] as String?;
+    if (agentId == null) return;
+
+    _inputCtrl.clear();
+    setState(() {
+      _sending = true;
+      _messages.add(_Msg(isMe: true, text: text, time: _timeNow()));
+    });
+    _scrollToBottom();
+
+    final assistantMsg = _Msg(isMe: false, text: '', time: _timeNow(), isStreaming: true);
+
+    try {
+      final ack = await LibreChatService.sendChatMessage(
+        agentId: agentId,
+        text: text,
+        messageId: _uuidV4(),
+        parentMessageId: _parentMessageId,
+        conversationId: _conversationId,
+      );
+      final streamId = ack['streamId'] as String? ?? ack['conversationId'] as String?;
+      if (streamId == null) throw Exception('No streamId in response');
+      _conversationId = ack['conversationId'] as String? ?? streamId;
+
+      if (!mounted) return;
+      setState(() => _messages.add(assistantMsg));
+      _scrollToBottom();
+
+      await for (final event in LibreChatService.streamChat(streamId)) {
+        if (!mounted) return;
+        if (event['event'] == 'on_message_delta') {
+          final content = event['data']?['delta']?['content'] as List?;
+          final chunk = (content != null && content.isNotEmpty) ? content[0]['text'] as String? ?? '' : '';
+          if (chunk.isNotEmpty) {
+            setState(() => assistantMsg.text += chunk);
+            _scrollToBottom();
+          }
+        } else if (event['final'] == true) {
+          final responseMessage = event['responseMessage'] as Map<String, dynamic>?;
+          final contentList = responseMessage?['content'] as List?;
+          final fullText = contentList
+                  ?.where((c) => c is Map && c['type'] == 'text')
+                  .map((c) => c['text'] as String)
+                  .join('\n\n') ??
+              assistantMsg.text;
+          setState(() {
+            assistantMsg.text = fullText.isEmpty ? assistantMsg.text : fullText;
+            assistantMsg.isStreaming = false;
+          });
+          _parentMessageId = responseMessage?['messageId'] as String? ?? _parentMessageId;
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        assistantMsg.isStreaming = false;
+        if (assistantMsg.text.isEmpty) {
+          assistantMsg.text = 'Something went wrong: $e';
+        }
+        if (!_messages.contains(assistantMsg)) _messages.add(assistantMsg);
+      });
+    } finally {
+      if (mounted) setState(() => _sending = false);
+      _scrollToBottom();
+    }
+  }
+
+  // Agent text sometimes comes back as plain text and sometimes as
+  // markdown (headings, bold, lists, ...) — render through MarkdownBody
+  // either way; it degrades to plain text when there's no markdown syntax.
+  Widget _markdownText(String text) {
+    return MarkdownBody(
+      data: text,
+      shrinkWrap: true,
+      styleSheet: MarkdownStyleSheet(
+        p: AppFonts.body(size: 14),
+        strong: AppFonts.body(size: 14, weight: FontWeight.w700),
+        em: AppFonts.body(size: 14).copyWith(fontStyle: FontStyle.italic),
+        listBullet: AppFonts.body(size: 14),
+        code: AppFonts.mono(size: 12.5, color: AppColors.text),
+        codeblockDecoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.25),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        h1: AppFonts.body(size: 18, weight: FontWeight.w700),
+        h2: AppFonts.body(size: 16.5, weight: FontWeight.w700),
+        h3: AppFonts.body(size: 15, weight: FontWeight.w700),
+        blockquoteDecoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.2),
+          border: const Border(left: BorderSide(color: AppColors.gold, width: 3)),
+        ),
+      ),
+    );
+  }
+
+  Widget _messageBubble(_Msg m) {
+    if (m.isStreaming && m.text.isEmpty) {
+      return const TypingIndicator();
+    }
+    return Align(
+      alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+        margin: const EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.fromLTRB(11, 8, 11, 6),
+        decoration: BoxDecoration(
+          color: m.isMe ? AppColors.mine : AppColors.other,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(11),
+            topRight: const Radius.circular(11),
+            bottomLeft: Radius.circular(m.isMe ? 11 : 3),
+            bottomRight: Radius.circular(m.isMe ? 3 : 11),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // The user's own messages are shown as-is, never
+            // markdown-rendered; agent replies go through _markdownText.
+            m.isMe ? Text(m.text, style: AppFonts.body(size: 14)) : _markdownText(m.text),
+            const SizedBox(height: 2),
+            Text(
+              m.time,
+              style: AppFonts.body(size: 9.5, color: m.isMe ? Colors.white.withOpacity(0.45) : AppColors.faint),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -216,60 +396,55 @@ class _AgentChatViewState extends State<AgentChatView> {
               ),
             ),
 
-            // ---- thread: a "TODAY" mark + the agent's greeting bubble
-            // (from its `description`) — real message history isn't wired
-            // up yet, this is just the opening state.
+            // ---- thread: TODAY mark + greeting bubble, then the live
+            // message history sent/streamed via LibreChatService ----
             Expanded(
               child: Container(
                 color: AppColors.chatBg,
-                padding: const EdgeInsets.fromLTRB(12, 14, 12, 4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Align(
-                      alignment: Alignment.center,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.panel2,
-                          borderRadius: BorderRadius.circular(100),
-                        ),
-                        child: Text('TODAY', style: AppFonts.mono(size: 10.5, letterSpacing: 0.6)),
-                      ),
-                    ),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
-                        margin: const EdgeInsets.symmetric(vertical: 3),
-                        padding: const EdgeInsets.fromLTRB(11, 8, 11, 6),
-                        decoration: const BoxDecoration(
-                          color: AppColors.other,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(11),
-                            topRight: Radius.circular(11),
-                            bottomLeft: Radius.circular(3),
-                            bottomRight: Radius.circular(11),
+                child: ListView.builder(
+                  controller: _scrollCtrl,
+                  padding: const EdgeInsets.fromLTRB(12, 14, 12, 4),
+                  itemCount: 2 + _messages.length,
+                  itemBuilder: (context, i) {
+                    if (i == 0) {
+                      return const DayMarkWidget(label: 'TODAY');
+                    }
+                    if (i == 1) {
+                      return Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+                          margin: const EdgeInsets.symmetric(vertical: 3),
+                          padding: const EdgeInsets.fromLTRB(11, 8, 11, 6),
+                          decoration: const BoxDecoration(
+                            color: AppColors.other,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(11),
+                              topRight: Radius.circular(11),
+                              bottomLeft: Radius.circular(3),
+                              bottomRight: Radius.circular(11),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _markdownText(greeting),
+                              const SizedBox(height: 2),
+                              Text(_timeNow(), style: AppFonts.body(size: 9.5, color: AppColors.faint)),
+                            ],
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(greeting, style: AppFonts.body(size: 14)),
-                            const SizedBox(height: 2),
-                            Text(_timeNow(), style: AppFonts.body(size: 9.5, color: AppColors.faint)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                      );
+                    }
+                    return _messageBubble(_messages[i - 2]);
+                  },
                 ),
               ),
             ),
 
-            // ---- conversation starters (bottom blocks) ----
-            if (starters.isNotEmpty)
+            // ---- conversation starters (bottom blocks) — hidden once the
+            // user has sent a first message ----
+            if (starters.isNotEmpty && _messages.isEmpty)
               Container(
                 width: double.infinity,
                 color: AppColors.chatBg,
@@ -279,7 +454,7 @@ class _AgentChatViewState extends State<AgentChatView> {
                   runSpacing: 7,
                   children: starters.map((s) {
                     return InkWell(
-                      onTap: () => _notWiredYet('Sending "${s.label}"'),
+                      onTap: () => _send(s.label),
                       borderRadius: BorderRadius.circular(100),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
@@ -320,7 +495,7 @@ class _AgentChatViewState extends State<AgentChatView> {
                       controller: _inputCtrl,
                       style: AppFonts.body(size: 14),
                       textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _notWiredYet('Sending messages'),
+                      onSubmitted: _sending ? null : _send,
                       decoration: InputDecoration(
                         hintText: 'Message',
                         hintStyle: AppFonts.body(size: 14, color: AppColors.faint),
@@ -344,13 +519,21 @@ class _AgentChatViewState extends State<AgentChatView> {
                   ),
                   const SizedBox(width: 8),
                   InkWell(
-                    onTap: () => _notWiredYet('Sending messages'),
+                    onTap: _sending ? null : () => _send(_inputCtrl.text),
                     borderRadius: BorderRadius.circular(21),
                     child: Container(
                       width: 42,
                       height: 42,
-                      decoration: const BoxDecoration(color: AppColors.teal, shape: BoxShape.circle),
-                      child: const Icon(Icons.arrow_upward, color: Color(0xFF04120D), size: 19),
+                      decoration: BoxDecoration(
+                        color: _sending ? AppColors.teal.withOpacity(0.35) : AppColors.teal,
+                        shape: BoxShape.circle,
+                      ),
+                      child: _sending
+                          ? const Padding(
+                              padding: EdgeInsets.all(11),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF04120D)),
+                            )
+                          : const Icon(Icons.arrow_upward, color: Color(0xFF04120D), size: 19),
                     ),
                   ),
                 ],

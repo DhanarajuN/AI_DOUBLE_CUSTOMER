@@ -15,4 +15,8 @@ class ServerUrls {
   static const String librechatLogin = '/api/auth/login';
 
   static const String librechatAgents = '/api/agents/';
+
+  static const String librechatAgentChat = '/api/agents/chat';
+
+  static const String librechatAgentChatStream = '/api/agents/chat/stream/';
 }

@@ -20,6 +20,14 @@ class SessionStorage {
   static const _usernameKey = 'auth_username';
   static const _roleNameKey = 'auth_role_name';
 
+  /// The app's own accessToken (separate from LibreChat's token) — sent as
+  /// `X-Gosure-Token` on LibreChat chat requests so its gateway can
+  /// correlate them back to the GoSure user. See LibreChatService.
+  Future<String?> readAccessToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_accessTokenKey);
+  }
+
   Future<AuthSession?> readSession() async {
     final prefs = await SharedPreferences.getInstance();
     final accessToken = prefs.getString(_accessTokenKey);
