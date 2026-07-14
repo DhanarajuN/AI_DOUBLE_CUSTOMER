@@ -22,8 +22,7 @@ class AppRoutes {
   /// Pass the conversation id as `arguments`.
   static const String chatThread = '/chats/thread';
 
-  /// Pass the full agent detail (from LibreChatService.fetchAgentById) as
-  /// `arguments`.
+  /// Pass an [AgentThreadArgs] as `arguments`.
   static const String agentThread = '/agents/thread';
 
   /// Pass the professional id as `arguments`.
@@ -43,8 +42,15 @@ class AppRoutes {
         final convoId = settings.arguments as String;
         return MaterialPageRoute(builder: (_) => ChatThreadView(convoId: convoId), settings: settings);
       case agentThread:
-        final agent = settings.arguments as Map<String, dynamic>;
-        return MaterialPageRoute(builder: (_) => AgentChatView(agent: agent), settings: settings);
+        final args = settings.arguments as AgentThreadArgs;
+        return MaterialPageRoute(
+          builder: (_) => AgentChatView(
+            agent: args.agent,
+            initialConversationId: args.conversationId,
+            initialMessages: args.initialMessages,
+          ),
+          settings: settings,
+        );
       case profile:
         final proId = settings.arguments as String;
         return MaterialPageRoute(builder: (_) => ProfileView(proId: proId), settings: settings);

@@ -25,15 +25,28 @@ class _Msg {
   _Msg({required this.isMe, required this.text, required this.time, this.isStreaming = false});
 }
 
-/// Chat page for a single LibreChat agent, opened after picking one from
-/// showNewRequestSheet() and fetching its full detail via
-/// LibreChatService.fetchAgentById(). Mirrors ChatThreadView's static
-/// layout, but the app bar (name/avatar) and starter chips come from the
-/// real agent response, and messages are sent/streamed via
-/// LibreChatService.sendChatMessage/streamChat.
+/// Route arguments for [AppRoutes.agentThread] — bundles the agent detail
+/// with, optionally, an existing conversation to resume (its id and full
+/// message history from LibreChatService.fetchMessages).
+class AgentThreadArgs {
+  final Map<String, dynamic> agent;
+  final String? conversationId;
+  final List<Map<String, dynamic>>? initialMessages;
+  const AgentThreadArgs({required this.agent, this.conversationId, this.initialMessages});
+}
+
+/// Chat page for a single LibreChat agent. Either a fresh conversation
+/// (opened after picking one from showNewRequestSheet(), see [open]) or an
+/// existing one resumed from the chat list with its full history (see
+/// [openExisting]). Mirrors ChatThreadView's static layout, but the app bar
+/// (name/avatar) and starter chips come from the real agent response, and
+/// messages are sent/streamed via LibreChatService.sendChatMessage/
+/// streamChat.
 class AgentChatView extends StatefulWidget {
   final Map<String, dynamic> agent;
-  const AgentChatView({super.key, required this.agent});
+  final String? initialConversationId;
+  final List<Map<String, dynamic>>? initialMessages;
+  const AgentChatView({super.key, required this.agent, this.initialConversationId, this.initialMessages});
 
   /// Takes the agent summary from showNewRequestSheet() (which only has
   /// `id`/`name`/`description`/`avatar`), fetches the full detail by id —
@@ -59,12 +72,55 @@ class AgentChatView extends StatefulWidget {
       final detail = await LibreChatService.fetchAgentById(id);
       if (!context.mounted) return;
       Navigator.of(context).pop(); // close loading dialog
-      Navigator.of(context).pushNamed(AppRoutes.agentThread, arguments: detail);
+      Navigator.of(context).pushNamed(AppRoutes.agentThread, arguments: AgentThreadArgs(agent: detail));
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(context).pop(); // close loading dialog
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not open agent: $e')),
+      );
+    }
+  }
+
+  /// Reopens a past conversation from the chat list — fetches the agent
+  /// detail (by `agentId`) and the full message history (by
+  /// `conversationId`) in parallel, then pushes the chat page pre-loaded
+  /// with both, so sending a message continues that same conversation.
+  static Future<void> openExisting(
+    BuildContext context, {
+    required String conversationId,
+    required String agentId,
+  }) async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.teal),
+        ),
+      ),
+    );
+
+    try {
+      final results = await Future.wait([
+        LibreChatService.fetchAgentById(agentId),
+        LibreChatService.fetchMessages(conversationId),
+      ]);
+      final agent = results[0] as Map<String, dynamic>;
+      final messages = results[1] as List<Map<String, dynamic>>;
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // close loading dialog
+      Navigator.of(context).pushNamed(
+        AppRoutes.agentThread,
+        arguments: AgentThreadArgs(agent: agent, conversationId: conversationId, initialMessages: messages),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open chat: $e')),
       );
     }
   }
@@ -83,6 +139,27 @@ class _AgentChatViewState extends State<AgentChatView> {
   String? _conversationId;
   String _parentMessageId = _rootParentMessageId;
   bool _sending = false;
+  bool _hasHistory = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final raw = widget.initialMessages;
+    if (raw != null && raw.isNotEmpty) {
+      _hasHistory = true;
+      _conversationId = widget.initialConversationId;
+      for (final m in raw) {
+        final isMe = m['isCreatedByUser'] == true;
+        final content = m['content'] as List?;
+        final text = (content != null && content.isNotEmpty)
+            ? content.whereType<Map>().where((c) => c['type'] == 'text').map((c) => c['text'] as String).join('\n\n')
+            : (m['text'] as String? ?? '');
+        final createdAt = DateTime.tryParse(m['createdAt'] as String? ?? '') ?? DateTime.now();
+        _messages.add(_Msg(isMe: isMe, text: text, time: _formatTime(createdAt)));
+      }
+      _parentMessageId = raw.last['messageId'] as String? ?? _rootParentMessageId;
+    }
+  }
 
   @override
   void dispose() {
@@ -152,10 +229,9 @@ class _AgentChatViewState extends State<AgentChatView> {
     );
   }
 
-  String _timeNow() {
-    final now = DateTime.now();
-    return '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
-  }
+  String _formatTime(DateTime dt) => '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+
+  String _timeNow() => _formatTime(DateTime.now());
 
   String _uuidV4() {
     final rnd = Random.secure();
@@ -404,39 +480,45 @@ class _AgentChatViewState extends State<AgentChatView> {
                 child: ListView.builder(
                   controller: _scrollCtrl,
                   padding: const EdgeInsets.fromLTRB(12, 14, 12, 4),
-                  itemCount: 2 + _messages.length,
+                  // Resumed conversations already have their own real
+                  // greeting exchange in history — only synthesize a
+                  // TODAY mark + greeting bubble for a brand-new chat.
+                  itemCount: (_hasHistory ? 0 : 2) + _messages.length,
                   itemBuilder: (context, i) {
-                    if (i == 0) {
-                      return const DayMarkWidget(label: 'TODAY');
-                    }
-                    if (i == 1) {
-                      return Align(
-                        alignment: Alignment.centerLeft,
-                        child: Container(
-                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
-                          margin: const EdgeInsets.symmetric(vertical: 3),
-                          padding: const EdgeInsets.fromLTRB(11, 8, 11, 6),
-                          decoration: const BoxDecoration(
-                            color: AppColors.other,
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(11),
-                              topRight: Radius.circular(11),
-                              bottomLeft: Radius.circular(3),
-                              bottomRight: Radius.circular(11),
+                    if (!_hasHistory) {
+                      if (i == 0) {
+                        return const DayMarkWidget(label: 'TODAY');
+                      }
+                      if (i == 1) {
+                        return Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+                            margin: const EdgeInsets.symmetric(vertical: 3),
+                            padding: const EdgeInsets.fromLTRB(11, 8, 11, 6),
+                            decoration: const BoxDecoration(
+                              color: AppColors.other,
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(11),
+                                topRight: Radius.circular(11),
+                                bottomLeft: Radius.circular(3),
+                                bottomRight: Radius.circular(11),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _markdownText(greeting),
+                                const SizedBox(height: 2),
+                                Text(_timeNow(), style: AppFonts.body(size: 9.5, color: AppColors.faint)),
+                              ],
                             ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _markdownText(greeting),
-                              const SizedBox(height: 2),
-                              Text(_timeNow(), style: AppFonts.body(size: 9.5, color: AppColors.faint)),
-                            ],
-                          ),
-                        ),
-                      );
+                        );
+                      }
+                      return _messageBubble(_messages[i - 2]);
                     }
-                    return _messageBubble(_messages[i - 2]);
+                    return _messageBubble(_messages[i]);
                   },
                 ),
               ),
