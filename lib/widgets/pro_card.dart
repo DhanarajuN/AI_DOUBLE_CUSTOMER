@@ -76,7 +76,7 @@ class ProCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.appTextMutedColor, size: 18),
+            Icon(Icons.chevron_right, color: AppColors.appTextMutedColor, size: 18),
           ],
         ),
       ),

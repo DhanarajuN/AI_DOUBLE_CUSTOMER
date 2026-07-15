@@ -59,12 +59,12 @@ class TextBubble extends StatelessWidget {
                   message.time,
                   style: AppFonts.body(
                     size: 9.5,
-                    color: me ? Colors.white.withOpacity(0.45) : AppColors.appTextMutedColor,
+                    color: me ? AppColors.appTextColor.withOpacity(0.55) : AppColors.appTextMutedColor,
                   ),
                 ),
                 if (me) ...[
                   const SizedBox(width: 3),
-                  const Text('✓✓', style: TextStyle(color: AppColors.appSuccessColor, fontSize: 9.5)),
+                  Text('✓✓', style: TextStyle(color: AppColors.appSuccessColor, fontSize: 9.5)),
                 ],
               ],
             ),
@@ -94,7 +94,7 @@ class ProListBubble extends StatelessWidget {
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
         margin: const EdgeInsets.symmetric(vertical: 3),
         padding: const EdgeInsets.fromLTRB(11, 8, 11, 8),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.appChatBubbleOtherColor,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(11),
@@ -113,7 +113,7 @@ class ProListBubble extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.28),
                 borderRadius: BorderRadius.circular(10),
-                border: const Border(left: BorderSide(color: AppColors.appSecondaryColor, width: 3)),
+                border: Border(left: BorderSide(color: AppColors.appSecondaryColor, width: 3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,7 +165,7 @@ class _TypingIndicatorState extends State<TypingIndicator> with SingleTickerProv
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 3),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.appChatBubbleOtherColor,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(11),
@@ -190,7 +190,7 @@ class _TypingIndicatorState extends State<TypingIndicator> with SingleTickerProv
                       width: 6,
                       height: 6,
                       margin: const EdgeInsets.symmetric(horizontal: 2),
-                      decoration: const BoxDecoration(color: AppColors.appTextSecondaryColor, shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: AppColors.appTextSecondaryColor, shape: BoxShape.circle),
                     ),
                   ),
                 );

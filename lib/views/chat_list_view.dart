@@ -275,11 +275,11 @@ class _ChatListViewState extends State<ChatListView> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.search, color: AppColors.appTextSecondaryColor),
+            icon: Icon(Icons.search, color: AppColors.appTextSecondaryColor),
             onPressed: () => _searchFocus.requestFocus(),
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: AppColors.appTextSecondaryColor),
+            icon: Icon(Icons.more_vert, color: AppColors.appTextSecondaryColor),
             color: AppColors.appSurfaceVariantColor,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             onSelected: (value) {
@@ -309,7 +309,7 @@ class _ChatListViewState extends State<ChatListView> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.search, size: 16, color: AppColors.appTextMutedColor),
+            Icon(Icons.search, size: 16, color: AppColors.appTextMutedColor),
             const SizedBox(width: 9),
             Expanded(
               child: TextField(
@@ -331,8 +331,8 @@ class _ChatListViewState extends State<ChatListView> {
                   _searchCtrl.clear();
                   setState(() => _query = '');
                 },
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 9),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 9),
                   child: Icon(Icons.close, size: 16, color: AppColors.appTextMutedColor),
                 ),
               ),

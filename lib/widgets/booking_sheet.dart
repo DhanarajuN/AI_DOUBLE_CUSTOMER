@@ -140,7 +140,7 @@ Future<void> showBookingSheet({
                       height: 64,
                       margin: const EdgeInsets.only(top: 20, bottom: 16),
                       decoration: BoxDecoration(color: AppColors.appSuccessColor.withOpacity(0.14), shape: BoxShape.circle),
-                      child: const Icon(Icons.check, color: AppColors.appSuccessColor, size: 32),
+                      child: Icon(Icons.check, color: AppColors.appSuccessColor, size: 32),
                     ),
                     Text('Booking confirmed', style: AppFonts.display(size: 20), textAlign: TextAlign.center),
                     const SizedBox(height: 4),

@@ -141,7 +141,7 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.more_vert, color: AppColors.appTextSecondaryColor),
+                    icon: Icon(Icons.more_vert, color: AppColors.appTextSecondaryColor),
                     onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Chat options'), behavior: SnackBarBehavior.floating),
                     ),
@@ -219,7 +219,7 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.add, color: AppColors.appTextSecondaryColor),
+                    icon: Icon(Icons.add, color: AppColors.appTextSecondaryColor),
                     onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Attach'), behavior: SnackBarBehavior.floating),
                     ),

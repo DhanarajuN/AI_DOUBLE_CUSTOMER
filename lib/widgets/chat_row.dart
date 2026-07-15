@@ -80,7 +80,7 @@ class ChatRow extends StatelessWidget {
                           child: Row(
                             children: [
                               if (convo.lastFromMe) ...[
-                                const Text('✓✓', style: TextStyle(color: AppColors.appSuccessColor, fontSize: 12)),
+                                Text('✓✓', style: TextStyle(color: AppColors.appSuccessColor, fontSize: 12)),
                                 const SizedBox(width: 5),
                               ],
                               Expanded(
@@ -124,7 +124,7 @@ class ChatRow extends StatelessWidget {
             if (onUnarchive != null) ...[
               const SizedBox(width: 4),
               IconButton(
-                icon: const Icon(Icons.move_to_inbox_outlined, color: AppColors.appTextSecondaryColor, size: 20),
+                icon: Icon(Icons.move_to_inbox_outlined, color: AppColors.appTextSecondaryColor, size: 20),
                 tooltip: 'Move to chats',
                 onPressed: onUnarchive,
               ),

@@ -48,7 +48,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (Navigator.canPop(context)) Navigator.pop(context);
       });
-      return const Scaffold(backgroundColor: AppColors.appBackgroundColor);
+      return Scaffold(backgroundColor: AppColors.appBackgroundColor);
     }
 
     return Scaffold(
@@ -142,7 +142,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                                     AnimatedRotation(
                                       turns: open ? 0.25 : 0,
                                       duration: const Duration(milliseconds: 200),
-                                      child: const Icon(Icons.chevron_right, size: 16, color: AppColors.appTextMutedColor),
+                                      child: Icon(Icons.chevron_right, size: 16, color: AppColors.appTextMutedColor),
                                     ),
                                   ],
                                 ),
@@ -233,7 +233,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () => _openThread(context, vm),
-                    child: const Icon(Icons.chat_bubble_outline, color: AppColors.appTextColor, size: 20),
+                    child: Icon(Icons.chat_bubble_outline, color: AppColors.appTextColor, size: 20),
                   ),
                   const SizedBox(width: 10),
                   Expanded(

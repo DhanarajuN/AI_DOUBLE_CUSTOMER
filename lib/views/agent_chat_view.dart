@@ -347,7 +347,7 @@ class _AgentChatViewState extends State<AgentChatView> {
         h3: AppFonts.body(size: 15, weight: FontWeight.w700),
         blockquoteDecoration: BoxDecoration(
           color: Colors.black.withOpacity(0.2),
-          border: const Border(left: BorderSide(color: AppColors.appSecondaryColor, width: 3)),
+          border: Border(left: BorderSide(color: AppColors.appSecondaryColor, width: 3)),
         ),
       ),
     );
@@ -381,7 +381,7 @@ class _AgentChatViewState extends State<AgentChatView> {
             const SizedBox(height: 2),
             Text(
               m.time,
-              style: AppFonts.body(size: 9.5, color: m.isMe ? Colors.white.withOpacity(0.45) : AppColors.appTextMutedColor),
+              style: AppFonts.body(size: 9.5, color: m.isMe ? AppColors.appTextColor.withOpacity(0.55) : AppColors.appTextMutedColor),
             ),
           ],
         ),
@@ -465,7 +465,7 @@ class _AgentChatViewState extends State<AgentChatView> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.more_vert, color: AppColors.appTextSecondaryColor),
+                    icon: Icon(Icons.more_vert, color: AppColors.appTextSecondaryColor),
                     onPressed: () => _notWiredYet('Chat options'),
                   ),
                 ],
@@ -496,7 +496,7 @@ class _AgentChatViewState extends State<AgentChatView> {
                             constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
                             margin: const EdgeInsets.symmetric(vertical: 3),
                             padding: const EdgeInsets.fromLTRB(11, 8, 11, 6),
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               color: AppColors.appChatBubbleOtherColor,
                               borderRadius: BorderRadius.only(
                                 topLeft: Radius.circular(11),
@@ -569,7 +569,7 @@ class _AgentChatViewState extends State<AgentChatView> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.add, color: AppColors.appTextSecondaryColor),
+                    icon: Icon(Icons.add, color: AppColors.appTextSecondaryColor),
                     onPressed: () => _notWiredYet('Attach'),
                   ),
                   Expanded(
