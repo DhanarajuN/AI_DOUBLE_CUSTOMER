@@ -1,30 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Colors ported 1:1 from the :root CSS variables in customer.html
+/// The app's single color palette, named by role (not by hue) so the whole
+/// app can be re-themed by editing values here — e.g. swapping
+/// [appPrimaryColor]/[appPrimaryDarkColor] from teal to blue restyles every
+/// button, link, and accent everywhere they're used.
 class AppColors {
-  static const ink = Color(0xFF050807);
-  static const app = Color(0xFF0B141A);
-  static const chatBg = Color(0xFF0A1310);
-  static const panel = Color(0xFF111F1A);
-  static const panel2 = Color(0xFF16241F);
-  static const line = Color(0x1A78BEAA); // rgba(120,190,170,.10)
-  static const line2 = Color(0x3878BEAA); // rgba(120,190,170,.22)
-  static const teal = Color(0xFF12B886);
-  static const tealDeep = Color(0xFF0A5C48);
-  static const gold = Color(0xFFE0B25C);
-  static const goldDim = Color(0x24E0B25C); // rgba(224,178,92,.14)
-  static const green = Color(0xFF3DDC97);
-  static const text = Color(0xFFE8F0EC);
-  static const dim = Color(0xFF8BA49B);
-  static const faint = Color(0xFF5C716A);
-  static const mine = Color(0xFF134D3D);
-  static const other = Color(0xFF1C2B25);
+  static const appInkColor = Color(0xFF050807);
+  static const appBackgroundColor = Color(0xFF0B141A);
+  static const appChatBackgroundColor = Color(0xFF0A1310);
+  static const appSurfaceColor = Color(0xFF111F1A);
+  static const appSurfaceVariantColor = Color(0xFF16241F);
+  static const appBorderColor = Color(0x1A78BEAA); // rgba(120,190,170,.10)
+  static const appBorderColorStrong = Color(0x3878BEAA); // rgba(120,190,170,.22)
+  static const appPrimaryColor = Color(0xFF12B886);
+  static const appPrimaryDarkColor = Color(0xFF0A5C48);
+  static const appSecondaryColor = Color(0xFFE0B25C);
+  static const appSecondaryColorDim = Color(0x24E0B25C);
+  static const appSuccessColor = Color(0xFF3DDC97);
+  static const appTextColor = Color(0xFFE8F0EC);
+  static const appTextSecondaryColor = Color(0xFF8BA49B);
+  static const appTextMutedColor = Color(0xFF5C716A);
+  static const appChatBubbleMineColor = Color(0xFF134D3D);
+  static const appChatBubbleOtherColor = Color(0xFF1C2B25);
 
-  static const tealGradient = LinearGradient(
+  // Text/icon color for content sitting on top of the primary accent
+  // (FABs, send buttons, primary CTAs) — kept as one named color so it
+  // stays in sync if the accent color ever changes.
+  static const appOnPrimaryColor = Color(0xFF04120D);
+
+  static const appPrimaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [teal, tealDeep],
+    colors: [appPrimaryColor, appPrimaryDarkColor],
   );
 }
 
@@ -33,7 +41,7 @@ class AppFonts {
   static TextStyle display({
     double size = 19,
     FontWeight weight = FontWeight.w500,
-    Color color = AppColors.text,
+    Color color = AppColors.appTextColor,
   }) =>
       GoogleFonts.fraunces(
         fontSize: size,
@@ -45,13 +53,13 @@ class AppFonts {
   static TextStyle body({
     double size = 14,
     FontWeight weight = FontWeight.w400,
-    Color color = AppColors.text,
+    Color color = AppColors.appTextColor,
   }) =>
       GoogleFonts.interTight(fontSize: size, fontWeight: weight, color: color);
 
   static TextStyle mono({
     double size = 10,
-    Color color = AppColors.dim,
+    Color color = AppColors.appTextSecondaryColor,
     double letterSpacing = 0.6,
   }) =>
       GoogleFonts.jetBrainsMono(
@@ -64,12 +72,12 @@ class AppFonts {
 ThemeData buildAppTheme() {
   return ThemeData(
     brightness: Brightness.dark,
-    scaffoldBackgroundColor: AppColors.app,
+    scaffoldBackgroundColor: AppColors.appBackgroundColor,
     fontFamily: GoogleFonts.interTight().fontFamily,
     colorScheme: const ColorScheme.dark(
-      primary: AppColors.teal,
-      secondary: AppColors.gold,
-      surface: AppColors.panel,
+      primary: AppColors.appPrimaryColor,
+      secondary: AppColors.appSecondaryColor,
+      surface: AppColors.appSurfaceColor,
     ),
     splashFactory: NoSplash.splashFactory,
     highlightColor: Colors.transparent,
@@ -77,13 +85,13 @@ ThemeData buildAppTheme() {
     // .showSnackBar(...) call in the app gets a readable, on-brand toast
     // without needing to repeat colors at each call site.
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: AppColors.panel2,
-      contentTextStyle: AppFonts.body(size: 13.5, color: AppColors.text),
-      actionTextColor: AppColors.teal,
+      backgroundColor: AppColors.appSurfaceVariantColor,
+      contentTextStyle: AppFonts.body(size: 13.5, color: AppColors.appTextColor),
+      actionTextColor: AppColors.appPrimaryColor,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.line),
+        side: const BorderSide(color: AppColors.appBorderColor),
       ),
     ),
   );

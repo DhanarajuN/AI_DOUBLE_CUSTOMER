@@ -29,15 +29,15 @@ class _ArchivedBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final vm = context.watch<ArchivedViewModel>();
     return Scaffold(
-      backgroundColor: AppColors.app,
+      backgroundColor: AppColors.appBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
             Container(
               padding: const EdgeInsets.fromLTRB(6, 14, 14, 12),
               decoration: const BoxDecoration(
-                color: AppColors.panel,
-                border: Border(bottom: BorderSide(color: AppColors.line)),
+                color: AppColors.appSurfaceColor,
+                border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
               ),
               child: Row(
                 children: [

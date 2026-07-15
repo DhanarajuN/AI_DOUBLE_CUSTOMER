@@ -48,11 +48,11 @@ class _ProfileBodyState extends State<_ProfileBody> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (Navigator.canPop(context)) Navigator.pop(context);
       });
-      return const Scaffold(backgroundColor: AppColors.app);
+      return const Scaffold(backgroundColor: AppColors.appBackgroundColor);
     }
 
     return Scaffold(
-      backgroundColor: AppColors.app,
+      backgroundColor: AppColors.appBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -60,8 +60,8 @@ class _ProfileBodyState extends State<_ProfileBody> {
             Container(
               padding: const EdgeInsets.fromLTRB(6, 14, 14, 12),
               decoration: const BoxDecoration(
-                color: AppColors.panel,
-                border: Border(bottom: BorderSide(color: AppColors.line)),
+                color: AppColors.appSurfaceColor,
+                border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
               ),
               child: Row(
                 children: [
@@ -73,7 +73,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                   IconButton(
                     icon: Icon(
                       vm.isSaved ? Icons.bookmark : Icons.bookmark_border,
-                      color: vm.isSaved ? AppColors.gold : AppColors.dim,
+                      color: vm.isSaved ? AppColors.appSecondaryColor : AppColors.appTextSecondaryColor,
                     ),
                     onPressed: () {
                       final wasSaved = vm.isSaved;
@@ -97,7 +97,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                 children: [
                   _buildHeader(pro),
                   _buildStats(pro),
-                  _buildSection('About', child: Text(pro.about, style: AppFonts.body(size: 13.5, color: AppColors.text))),
+                  _buildSection('About', child: Text(pro.about, style: AppFonts.body(size: 13.5, color: AppColors.appTextColor))),
                   _buildSection(
                     'Services',
                     child: Wrap(
@@ -107,11 +107,11 @@ class _ProfileBodyState extends State<_ProfileBody> {
                           .map((s) => Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: AppColors.panel,
-                                  border: Border.all(color: AppColors.line),
+                                  color: AppColors.appSurfaceColor,
+                                  border: Border.all(color: AppColors.appBorderColor),
                                   borderRadius: BorderRadius.circular(100),
                                 ),
-                                child: Text(s, style: AppFonts.body(size: 12, color: AppColors.dim)),
+                                child: Text(s, style: AppFonts.body(size: 12, color: AppColors.appTextSecondaryColor)),
                               ))
                           .toList(),
                     ),
@@ -129,7 +129,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                             decoration: BoxDecoration(
                               border: i == 0
                                   ? null
-                                  : const Border(top: BorderSide(color: AppColors.line)),
+                                  : const Border(top: BorderSide(color: AppColors.appBorderColor)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,7 +142,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                                     AnimatedRotation(
                                       turns: open ? 0.25 : 0,
                                       duration: const Duration(milliseconds: 200),
-                                      child: const Icon(Icons.chevron_right, size: 16, color: AppColors.faint),
+                                      child: const Icon(Icons.chevron_right, size: 16, color: AppColors.appTextMutedColor),
                                     ),
                                   ],
                                 ),
@@ -152,7 +152,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                                     padding: const EdgeInsets.only(top: 8),
                                     child: Text(
                                       faq[1],
-                                      style: AppFonts.body(size: 13, color: AppColors.dim),
+                                      style: AppFonts.body(size: 13, color: AppColors.appTextSecondaryColor),
                                     ),
                                   ),
                                   crossFadeState: open ? CrossFadeState.showSecond : CrossFadeState.showFirst,
@@ -173,7 +173,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                         return Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            border: i == 0 ? null : const Border(top: BorderSide(color: AppColors.line)),
+                            border: i == 0 ? null : const Border(top: BorderSide(color: AppColors.appBorderColor)),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,7 +182,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                                 width: 34,
                                 height: 34,
                                 alignment: Alignment.center,
-                                decoration: const BoxDecoration(gradient: AppColors.tealGradient, shape: BoxShape.circle),
+                                decoration: const BoxDecoration(gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
                                 child: Text(
                                   r.initials,
                                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
@@ -197,11 +197,11 @@ class _ProfileBodyState extends State<_ProfileBody> {
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(r.name, style: AppFonts.body(size: 13, weight: FontWeight.w600)),
-                                        Text('★ ${r.rating}', style: AppFonts.body(size: 11, color: AppColors.gold)),
+                                        Text('★ ${r.rating}', style: AppFonts.body(size: 11, color: AppColors.appSecondaryColor)),
                                       ],
                                     ),
                                     const SizedBox(height: 4),
-                                    Text(r.text, style: AppFonts.body(size: 12.5, color: AppColors.dim)),
+                                    Text(r.text, style: AppFonts.body(size: 12.5, color: AppColors.appTextSecondaryColor)),
                                   ],
                                 ),
                               ),
@@ -220,27 +220,27 @@ class _ProfileBodyState extends State<_ProfileBody> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: const BoxDecoration(
-                color: AppColors.app,
-                border: Border(top: BorderSide(color: AppColors.line)),
+                color: AppColors.appBackgroundColor,
+                border: Border(top: BorderSide(color: AppColors.appBorderColor)),
               ),
               child: Row(
                 children: [
                   OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                      side: const BorderSide(color: AppColors.line2),
-                      backgroundColor: AppColors.panel,
+                      side: const BorderSide(color: AppColors.appBorderColorStrong),
+                      backgroundColor: AppColors.appSurfaceColor,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () => _openThread(context, vm),
-                    child: const Icon(Icons.chat_bubble_outline, color: AppColors.text, size: 20),
+                    child: const Icon(Icons.chat_bubble_outline, color: AppColors.appTextColor, size: 20),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.teal,
-                        foregroundColor: const Color(0xFF04120D),
+                        backgroundColor: AppColors.appPrimaryColor,
+                        foregroundColor: AppColors.appOnPrimaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
@@ -271,7 +271,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [AppColors.panel, AppColors.panel.withOpacity(0)],
+          colors: [AppColors.appSurfaceColor, AppColors.appSurfaceColor.withOpacity(0)],
         ),
       ),
       child: Row(
@@ -296,29 +296,29 @@ class _ProfileBodyState extends State<_ProfileBody> {
                   children: [
                     Flexible(child: Text(pro.name, style: AppFonts.display(size: 21))),
                     const SizedBox(width: 6),
-                    const Text('✓', style: TextStyle(color: AppColors.teal, fontSize: 15)),
+                    const Text('✓', style: TextStyle(color: AppColors.appPrimaryColor, fontSize: 15)),
                   ],
                 ),
                 const SizedBox(height: 2),
-                Text(pro.role, style: AppFonts.body(size: 13, color: AppColors.dim)),
+                Text(pro.role, style: AppFonts.body(size: 13, color: AppColors.appTextSecondaryColor)),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Text('★ ${pro.rating}', style: AppFonts.body(size: 12.5, weight: FontWeight.w600, color: AppColors.gold)),
+                    Text('★ ${pro.rating}', style: AppFonts.body(size: 12.5, weight: FontWeight.w600, color: AppColors.appSecondaryColor)),
                     const SizedBox(width: 10),
-                    Text('${pro.reviews} reviews', style: AppFonts.body(size: 12.5, color: AppColors.dim)),
+                    Text('${pro.reviews} reviews', style: AppFonts.body(size: 12.5, color: AppColors.appTextSecondaryColor)),
                     if (pro.tier != null) ...[
                       const SizedBox(width: 10),
-                      Text('·', style: AppFonts.body(size: 12.5, color: AppColors.faint)),
+                      Text('·', style: AppFonts.body(size: 12.5, color: AppColors.appTextMutedColor)),
                       const SizedBox(width: 10),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: AppColors.goldDim,
-                          border: Border.all(color: AppColors.gold.withOpacity(0.3)),
+                          color: AppColors.appSecondaryColorDim,
+                          border: Border.all(color: AppColors.appSecondaryColor.withOpacity(0.3)),
                           borderRadius: BorderRadius.circular(5),
                         ),
-                        child: Text('${pro.tier} TIER', style: AppFonts.mono(size: 9, color: AppColors.gold, letterSpacing: 0.7)),
+                        child: Text('${pro.tier} TIER', style: AppFonts.mono(size: 9, color: AppColors.appSecondaryColor, letterSpacing: 0.7)),
                       ),
                     ],
                   ],
@@ -335,12 +335,12 @@ class _ProfileBodyState extends State<_ProfileBody> {
     Widget stat(String n, String l) => Expanded(
           child: Container(
             padding: const EdgeInsets.all(12),
-            color: AppColors.panel,
+            color: AppColors.appSurfaceColor,
             child: Column(
               children: [
                 Text(n, style: AppFonts.display(size: 18)),
                 const SizedBox(height: 2),
-                Text(l, style: AppFonts.body(size: 10, color: AppColors.dim)),
+                Text(l, style: AppFonts.body(size: 10, color: AppColors.appTextSecondaryColor)),
               ],
             ),
           ),
@@ -348,16 +348,16 @@ class _ProfileBodyState extends State<_ProfileBody> {
     return Container(
       margin: const EdgeInsets.fromLTRB(18, 4, 18, 0),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.line),
+        border: Border.all(color: AppColors.appBorderColor),
         borderRadius: BorderRadius.circular(12),
       ),
       clipBehavior: Clip.antiAlias,
       child: Row(
         children: [
           stat(pro.rating, 'Rating'),
-          Container(width: 1, color: AppColors.line),
+          Container(width: 1, color: AppColors.appBorderColor),
           stat(pro.responds, 'Responds'),
-          Container(width: 1, color: AppColors.line),
+          Container(width: 1, color: AppColors.appBorderColor),
           stat(pro.verifiedSince, 'Verified'),
         ],
       ),
@@ -370,7 +370,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title.toUpperCase(), style: AppFonts.mono(size: 10, letterSpacing: 1.4, color: AppColors.faint)),
+          Text(title.toUpperCase(), style: AppFonts.mono(size: 10, letterSpacing: 1.4, color: AppColors.appTextMutedColor)),
           const SizedBox(height: 10),
           child,
         ],

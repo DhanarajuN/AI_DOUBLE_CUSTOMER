@@ -86,7 +86,7 @@ class _ChatListViewState extends State<ChatListView> {
     final results = _visible;
 
     return Scaffold(
-      backgroundColor: AppColors.app,
+      backgroundColor: AppColors.appBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -96,7 +96,7 @@ class _ChatListViewState extends State<ChatListView> {
                 children: [
                   RefreshIndicator(
                     onRefresh: _load,
-                    color: AppColors.teal,
+                    color: AppColors.appPrimaryColor,
                     child: ListView(
                       padding: const EdgeInsets.only(bottom: 90),
                       children: [
@@ -108,7 +108,7 @@ class _ChatListViewState extends State<ChatListView> {
                               child: SizedBox(
                                 width: 22,
                                 height: 22,
-                                child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.teal),
+                                child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.appPrimaryColor),
                               ),
                             ),
                           )
@@ -118,7 +118,7 @@ class _ChatListViewState extends State<ChatListView> {
                             child: Center(
                               child: Text(
                                 'Could not load chats. Pull to refresh.',
-                                style: AppFonts.body(size: 13.5, color: AppColors.dim),
+                                style: AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor),
                               ),
                             ),
                           )
@@ -130,7 +130,7 @@ class _ChatListViewState extends State<ChatListView> {
                               child: Center(
                                 child: Text(
                                   'No chats matching "$_query"',
-                                  style: AppFonts.body(size: 13.5, color: AppColors.dim),
+                                  style: AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor),
                                 ),
                               ),
                             ),
@@ -140,7 +140,7 @@ class _ChatListViewState extends State<ChatListView> {
                               child: Center(
                                 child: Text(
                                   'No chats yet — tap + to start one.',
-                                  style: AppFonts.body(size: 13.5, color: AppColors.dim),
+                                  style: AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor),
                                 ),
                               ),
                             ),
@@ -152,7 +152,7 @@ class _ChatListViewState extends State<ChatListView> {
                     right: 20,
                     bottom: 24,
                     child: FloatingActionButton(
-                      backgroundColor: AppColors.teal,
+                      backgroundColor: AppColors.appPrimaryColor,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                       onPressed: () async {
                         final agent = await showNewRequestSheet(context);
@@ -160,7 +160,7 @@ class _ChatListViewState extends State<ChatListView> {
                           await AgentChatView.open(context, agent);
                         }
                       },
-                      child: const Icon(Icons.add, color: Color(0xFF04120D), size: 26),
+                      child: const Icon(Icons.add, color: AppColors.appOnPrimaryColor, size: 26),
                     ),
                   ),
                 ],
@@ -189,7 +189,7 @@ class _ChatListViewState extends State<ChatListView> {
             Container(
               width: 50,
               height: 50,
-              decoration: const BoxDecoration(gradient: AppColors.tealGradient, shape: BoxShape.circle),
+              decoration: const BoxDecoration(gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
               child: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 12),
@@ -197,7 +197,7 @@ class _ChatListViewState extends State<ChatListView> {
               child: Container(
                 padding: const EdgeInsets.only(bottom: 11),
                 decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: AppColors.line)),
+                  border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
                 ),
                 child: Row(
                   children: [
@@ -210,7 +210,7 @@ class _ChatListViewState extends State<ChatListView> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(time, style: AppFonts.body(size: 11, color: AppColors.faint)),
+                    Text(time, style: AppFonts.body(size: 11, color: AppColors.appTextMutedColor)),
                   ],
                 ),
               ),
@@ -225,8 +225,8 @@ class _ChatListViewState extends State<ChatListView> {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       decoration: const BoxDecoration(
-        color: AppColors.panel,
-        border: Border(bottom: BorderSide(color: AppColors.line)),
+        color: AppColors.appSurfaceColor,
+        border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
       ),
       child: Row(
         children: [
@@ -234,7 +234,7 @@ class _ChatListViewState extends State<ChatListView> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              gradient: AppColors.tealGradient,
+              gradient: AppColors.appPrimaryGradient,
               borderRadius: BorderRadius.circular(9),
             ),
             child: Stack(
@@ -247,9 +247,9 @@ class _ChatListViewState extends State<ChatListView> {
                     width: 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: AppColors.gold,
+                      color: AppColors.appSecondaryColor,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.panel, width: 2),
+                      border: Border.all(color: AppColors.appSurfaceColor, width: 2),
                     ),
                   ),
                 ),
@@ -266,7 +266,7 @@ class _ChatListViewState extends State<ChatListView> {
                     style: AppFonts.display(size: 19),
                     children: [
                       const TextSpan(text: 'AI '),
-                      TextSpan(text: 'Double', style: AppFonts.display(size: 19, weight: FontWeight.w400, color: AppColors.gold).copyWith(fontStyle: FontStyle.italic)),
+                      TextSpan(text: 'Double', style: AppFonts.display(size: 19, weight: FontWeight.w400, color: AppColors.appSecondaryColor).copyWith(fontStyle: FontStyle.italic)),
                     ],
                   ),
                 ),
@@ -275,12 +275,12 @@ class _ChatListViewState extends State<ChatListView> {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.search, color: AppColors.dim),
+            icon: const Icon(Icons.search, color: AppColors.appTextSecondaryColor),
             onPressed: () => _searchFocus.requestFocus(),
           ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: AppColors.dim),
-            color: AppColors.panel2,
+            icon: const Icon(Icons.more_vert, color: AppColors.appTextSecondaryColor),
+            color: AppColors.appSurfaceVariantColor,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             onSelected: (value) {
               if (value == 'logout') _confirmLogout(context);
@@ -303,13 +303,13 @@ class _ChatListViewState extends State<ChatListView> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 15),
         decoration: BoxDecoration(
-          color: AppColors.panel2,
-          border: Border.all(color: AppColors.line),
+          color: AppColors.appSurfaceVariantColor,
+          border: Border.all(color: AppColors.appBorderColor),
           borderRadius: BorderRadius.circular(100),
         ),
         child: Row(
           children: [
-            const Icon(Icons.search, size: 16, color: AppColors.faint),
+            const Icon(Icons.search, size: 16, color: AppColors.appTextMutedColor),
             const SizedBox(width: 9),
             Expanded(
               child: TextField(
@@ -321,7 +321,7 @@ class _ChatListViewState extends State<ChatListView> {
                   isDense: true,
                   border: InputBorder.none,
                   hintText: 'Search chats…',
-                  hintStyle: AppFonts.body(size: 13.5, color: AppColors.faint),
+                  hintStyle: AppFonts.body(size: 13.5, color: AppColors.appTextMutedColor),
                 ),
               ),
             ),
@@ -333,7 +333,7 @@ class _ChatListViewState extends State<ChatListView> {
                 },
                 child: const Padding(
                   padding: EdgeInsets.symmetric(vertical: 9),
-                  child: Icon(Icons.close, size: 16, color: AppColors.faint),
+                  child: Icon(Icons.close, size: 16, color: AppColors.appTextMutedColor),
                 ),
               ),
           ],
@@ -346,21 +346,21 @@ class _ChatListViewState extends State<ChatListView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.panel,
+        backgroundColor: AppColors.appSurfaceColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text('Log out?', style: AppFonts.display(size: 17)),
         content: Text(
           "You'll need to sign in again to access your chats.",
-          style: AppFonts.body(size: 13.5, color: AppColors.dim),
+          style: AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancel', style: AppFonts.body(size: 14, color: AppColors.dim)),
+            child: Text('Cancel', style: AppFonts.body(size: 14, color: AppColors.appTextSecondaryColor)),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Log out', style: AppFonts.body(size: 14, weight: FontWeight.w600, color: AppColors.teal)),
+            child: Text('Log out', style: AppFonts.body(size: 14, weight: FontWeight.w600, color: AppColors.appPrimaryColor)),
           ),
         ],
       ),

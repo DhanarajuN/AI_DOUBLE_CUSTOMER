@@ -39,7 +39,7 @@ class ChatRow extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.only(bottom: 11),
                 decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: AppColors.line)),
+                  border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,7 +59,7 @@ class ChatRow extends StatelessWidget {
                               ),
                               if (convo.isAI) ...[
                                 const SizedBox(width: 5),
-                                const Text('✓', style: TextStyle(color: AppColors.teal, fontSize: 12)),
+                                const Text('✓', style: TextStyle(color: AppColors.appPrimaryColor, fontSize: 12)),
                               ],
                             ],
                           ),
@@ -68,7 +68,7 @@ class ChatRow extends StatelessWidget {
                           convo.time,
                           style: AppFonts.body(
                             size: 11,
-                            color: unread ? AppColors.green : AppColors.faint,
+                            color: unread ? AppColors.appSuccessColor : AppColors.appTextMutedColor,
                           ),
                         ),
                       ],
@@ -80,7 +80,7 @@ class ChatRow extends StatelessWidget {
                           child: Row(
                             children: [
                               if (convo.lastFromMe) ...[
-                                const Text('✓✓', style: TextStyle(color: AppColors.green, fontSize: 12)),
+                                const Text('✓✓', style: TextStyle(color: AppColors.appSuccessColor, fontSize: 12)),
                                 const SizedBox(width: 5),
                               ],
                               Expanded(
@@ -88,7 +88,7 @@ class ChatRow extends StatelessWidget {
                                   convo.preview,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: AppFonts.body(size: 13, color: AppColors.dim),
+                                  style: AppFonts.body(size: 13, color: AppColors.appTextSecondaryColor),
                                 ),
                               ),
                             ],
@@ -102,13 +102,13 @@ class ChatRow extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 6),
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: AppColors.green,
+                              color: AppColors.appSuccessColor,
                               borderRadius: BorderRadius.circular(100),
                             ),
                             child: Text(
                               '${convo.unread}',
                               style: const TextStyle(
-                                color: Color(0xFF04120D),
+                                color: AppColors.appOnPrimaryColor,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -124,7 +124,7 @@ class ChatRow extends StatelessWidget {
             if (onUnarchive != null) ...[
               const SizedBox(width: 4),
               IconButton(
-                icon: const Icon(Icons.move_to_inbox_outlined, color: AppColors.dim, size: 20),
+                icon: const Icon(Icons.move_to_inbox_outlined, color: AppColors.appTextSecondaryColor, size: 20),
                 tooltip: 'Move to chats',
                 onPressed: onUnarchive,
               ),
@@ -141,7 +141,7 @@ class ChatRow extends StatelessWidget {
         width: 50,
         height: 50,
         decoration: const BoxDecoration(
-          gradient: AppColors.tealGradient,
+          gradient: AppColors.appPrimaryGradient,
           shape: BoxShape.circle,
         ),
         child: Stack(
@@ -156,9 +156,9 @@ class ChatRow extends StatelessWidget {
                 width: 14,
                 height: 14,
                 decoration: BoxDecoration(
-                  color: AppColors.gold,
+                  color: AppColors.appSecondaryColor,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.app, width: 2.5),
+                  border: Border.all(color: AppColors.appBackgroundColor, width: 2.5),
                 ),
               ),
             ),
@@ -166,7 +166,7 @@ class ChatRow extends StatelessWidget {
         ),
       );
     }
-    final gradient = pro?.gradient ?? const [AppColors.teal, AppColors.tealDeep];
+    final gradient = pro?.gradient ?? const [AppColors.appPrimaryColor, AppColors.appPrimaryDarkColor];
     final initials = pro?.initials ?? '';
     return Container(
       width: 50,

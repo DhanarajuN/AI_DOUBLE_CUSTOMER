@@ -37,7 +37,7 @@ class _SplashViewState extends State<SplashView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.app,
+      backgroundColor: AppColors.appBackgroundColor,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -47,7 +47,7 @@ class _SplashViewState extends State<SplashView> {
               height: 84,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                gradient: AppColors.tealGradient,
+                gradient: AppColors.appPrimaryGradient,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: const Icon(Icons.forum_outlined, color: Colors.white, size: 40),
@@ -60,7 +60,7 @@ class _SplashViewState extends State<SplashView> {
                   const TextSpan(text: 'AI '),
                   TextSpan(
                     text: 'Double',
-                    style: AppFonts.display(size: 26, weight: FontWeight.w400, color: AppColors.gold)
+                    style: AppFonts.display(size: 26, weight: FontWeight.w400, color: AppColors.appSecondaryColor)
                         .copyWith(fontStyle: FontStyle.italic),
                   ),
                 ],
@@ -70,7 +70,7 @@ class _SplashViewState extends State<SplashView> {
             const SizedBox(
               width: 22,
               height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.teal),
+              child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.appPrimaryColor),
             ),
           ],
         ),

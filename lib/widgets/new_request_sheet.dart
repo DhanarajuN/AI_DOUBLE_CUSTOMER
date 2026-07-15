@@ -42,7 +42,7 @@ List<Map<String, dynamic>> _buildSheetAgents(List<Map<String, dynamic>> agents, 
 Future<Map<String, dynamic>?> showNewRequestSheet(BuildContext context) {
   return showModalBottomSheet<Map<String, dynamic>>(
     context: context,
-    backgroundColor: AppColors.panel,
+    backgroundColor: AppColors.appSurfaceColor,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
@@ -58,7 +58,7 @@ Future<Map<String, dynamic>?> showNewRequestSheet(BuildContext context) {
                 width: 38,
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(color: AppColors.line2, borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(color: AppColors.appBorderColorStrong, borderRadius: BorderRadius.circular(2)),
               ),
               Align(
                 alignment: Alignment.centerLeft,
@@ -67,7 +67,7 @@ Future<Map<String, dynamic>?> showNewRequestSheet(BuildContext context) {
               const SizedBox(height: 4),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('What do you need help with?', style: AppFonts.body(size: 13, color: AppColors.dim)),
+                child: Text('What do you need help with?', style: AppFonts.body(size: 13, color: AppColors.appTextSecondaryColor)),
               ),
               const SizedBox(height: 16),
               ConstrainedBox(
@@ -84,7 +84,7 @@ Future<Map<String, dynamic>?> showNewRequestSheet(BuildContext context) {
                           child: SizedBox(
                             width: 22,
                             height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.teal),
+                            child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.appPrimaryColor),
                           ),
                         ),
                       );
@@ -95,7 +95,7 @@ Future<Map<String, dynamic>?> showNewRequestSheet(BuildContext context) {
                         padding: const EdgeInsets.symmetric(vertical: 24),
                         child: Text(
                           'Could not load agents. Try again later.',
-                          style: AppFonts.body(size: 13, color: AppColors.dim),
+                          style: AppFonts.body(size: 13, color: AppColors.appTextSecondaryColor),
                         ),
                       );
                     }
@@ -103,7 +103,7 @@ Future<Map<String, dynamic>?> showNewRequestSheet(BuildContext context) {
                     if (agents.isEmpty) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Text('No agents available.', style: AppFonts.body(size: 13, color: AppColors.dim)),
+                        child: Text('No agents available.', style: AppFonts.body(size: 13, color: AppColors.appTextSecondaryColor)),
                       );
                     }
                     return ListView.builder(
@@ -123,8 +123,8 @@ Future<Map<String, dynamic>?> showNewRequestSheet(BuildContext context) {
                               margin: const EdgeInsets.only(bottom: 9),
                               padding: const EdgeInsets.all(13),
                               decoration: BoxDecoration(
-                                color: AppColors.panel,
-                                border: Border.all(color: AppColors.line),
+                                color: AppColors.appSurfaceColor,
+                                border: Border.all(color: AppColors.appBorderColor),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Row(
@@ -139,7 +139,7 @@ Future<Map<String, dynamic>?> showNewRequestSheet(BuildContext context) {
                                         Text(name, style: AppFonts.body(size: 14, weight: FontWeight.w600)),
                                         if (description.isNotEmpty) ...[
                                           const SizedBox(height: 1),
-                                          Text(description, style: AppFonts.body(size: 12, color: AppColors.dim)),
+                                          Text(description, style: AppFonts.body(size: 12, color: AppColors.appTextSecondaryColor)),
                                         ],
                                       ],
                                     ),
@@ -182,7 +182,7 @@ class _AgentAvatar extends StatelessWidget {
       height: 36,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        gradient: AppColors.tealGradient,
+        gradient: AppColors.appPrimaryGradient,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Icon(icon, color: Colors.white, size: 18),

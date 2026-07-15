@@ -63,7 +63,7 @@ class AgentChatView extends StatefulWidget {
         child: SizedBox(
           width: 22,
           height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.teal),
+          child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.appPrimaryColor),
         ),
       ),
     );
@@ -98,7 +98,7 @@ class AgentChatView extends StatefulWidget {
         child: SizedBox(
           width: 22,
           height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.teal),
+          child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.appPrimaryColor),
         ),
       ),
     );
@@ -337,7 +337,7 @@ class _AgentChatViewState extends State<AgentChatView> {
         strong: AppFonts.body(size: 14, weight: FontWeight.w700),
         em: AppFonts.body(size: 14).copyWith(fontStyle: FontStyle.italic),
         listBullet: AppFonts.body(size: 14),
-        code: AppFonts.mono(size: 12.5, color: AppColors.text),
+        code: AppFonts.mono(size: 12.5, color: AppColors.appTextColor),
         codeblockDecoration: BoxDecoration(
           color: Colors.black.withOpacity(0.25),
           borderRadius: BorderRadius.circular(6),
@@ -347,7 +347,7 @@ class _AgentChatViewState extends State<AgentChatView> {
         h3: AppFonts.body(size: 15, weight: FontWeight.w700),
         blockquoteDecoration: BoxDecoration(
           color: Colors.black.withOpacity(0.2),
-          border: const Border(left: BorderSide(color: AppColors.gold, width: 3)),
+          border: const Border(left: BorderSide(color: AppColors.appSecondaryColor, width: 3)),
         ),
       ),
     );
@@ -364,7 +364,7 @@ class _AgentChatViewState extends State<AgentChatView> {
         margin: const EdgeInsets.symmetric(vertical: 3),
         padding: const EdgeInsets.fromLTRB(11, 8, 11, 6),
         decoration: BoxDecoration(
-          color: m.isMe ? AppColors.mine : AppColors.other,
+          color: m.isMe ? AppColors.appChatBubbleMineColor : AppColors.appChatBubbleOtherColor,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(11),
             topRight: const Radius.circular(11),
@@ -381,7 +381,7 @@ class _AgentChatViewState extends State<AgentChatView> {
             const SizedBox(height: 2),
             Text(
               m.time,
-              style: AppFonts.body(size: 9.5, color: m.isMe ? Colors.white.withOpacity(0.45) : AppColors.faint),
+              style: AppFonts.body(size: 9.5, color: m.isMe ? Colors.white.withOpacity(0.45) : AppColors.appTextMutedColor),
             ),
           ],
         ),
@@ -401,7 +401,7 @@ class _AgentChatViewState extends State<AgentChatView> {
         : "Hi! I'm $name. How can I help you today?";
 
     return Scaffold(
-      backgroundColor: AppColors.chatBg,
+      backgroundColor: AppColors.appChatBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -409,8 +409,8 @@ class _AgentChatViewState extends State<AgentChatView> {
             Container(
               padding: const EdgeInsets.fromLTRB(6, 14, 8, 12),
               decoration: const BoxDecoration(
-                color: AppColors.panel,
-                border: Border(bottom: BorderSide(color: AppColors.line)),
+                color: AppColors.appSurfaceColor,
+                border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
               ),
               child: Row(
                 children: [
@@ -421,7 +421,7 @@ class _AgentChatViewState extends State<AgentChatView> {
                   Container(
                     width: 40,
                     height: 40,
-                    decoration: const BoxDecoration(gradient: AppColors.tealGradient, shape: BoxShape.circle),
+                    decoration: const BoxDecoration(gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
                     child: Stack(
                       children: [
                         Center(child: Icon(avatarIcon, color: Colors.white, size: 18)),
@@ -432,9 +432,9 @@ class _AgentChatViewState extends State<AgentChatView> {
                             width: 12,
                             height: 12,
                             decoration: BoxDecoration(
-                              color: AppColors.gold,
+                              color: AppColors.appSecondaryColor,
                               shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.panel, width: 2),
+                              border: Border.all(color: AppColors.appSurfaceColor, width: 2),
                             ),
                           ),
                         ),
@@ -457,15 +457,15 @@ class _AgentChatViewState extends State<AgentChatView> {
                               ),
                             ),
                             const SizedBox(width: 5),
-                            const Text('✓', style: TextStyle(color: AppColors.teal, fontSize: 12)),
+                            const Text('✓', style: TextStyle(color: AppColors.appPrimaryColor, fontSize: 12)),
                           ],
                         ),
-                        Text('assistant · online', style: AppFonts.mono(size: 10, color: AppColors.green)),
+                        Text('assistant · online', style: AppFonts.mono(size: 10, color: AppColors.appSuccessColor)),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.more_vert, color: AppColors.dim),
+                    icon: const Icon(Icons.more_vert, color: AppColors.appTextSecondaryColor),
                     onPressed: () => _notWiredYet('Chat options'),
                   ),
                 ],
@@ -476,7 +476,7 @@ class _AgentChatViewState extends State<AgentChatView> {
             // message history sent/streamed via LibreChatService ----
             Expanded(
               child: Container(
-                color: AppColors.chatBg,
+                color: AppColors.appChatBackgroundColor,
                 child: ListView.builder(
                   controller: _scrollCtrl,
                   padding: const EdgeInsets.fromLTRB(12, 14, 12, 4),
@@ -497,7 +497,7 @@ class _AgentChatViewState extends State<AgentChatView> {
                             margin: const EdgeInsets.symmetric(vertical: 3),
                             padding: const EdgeInsets.fromLTRB(11, 8, 11, 6),
                             decoration: const BoxDecoration(
-                              color: AppColors.other,
+                              color: AppColors.appChatBubbleOtherColor,
                               borderRadius: BorderRadius.only(
                                 topLeft: Radius.circular(11),
                                 topRight: Radius.circular(11),
@@ -510,7 +510,7 @@ class _AgentChatViewState extends State<AgentChatView> {
                               children: [
                                 _markdownText(greeting),
                                 const SizedBox(height: 2),
-                                Text(_timeNow(), style: AppFonts.body(size: 9.5, color: AppColors.faint)),
+                                Text(_timeNow(), style: AppFonts.body(size: 9.5, color: AppColors.appTextMutedColor)),
                               ],
                             ),
                           ),
@@ -529,7 +529,7 @@ class _AgentChatViewState extends State<AgentChatView> {
             if (starters.isNotEmpty && _messages.isEmpty)
               Container(
                 width: double.infinity,
-                color: AppColors.chatBg,
+                color: AppColors.appChatBackgroundColor,
                 padding: const EdgeInsets.fromLTRB(12, 7, 12, 3),
                 child: Wrap(
                   spacing: 7,
@@ -541,18 +541,18 @@ class _AgentChatViewState extends State<AgentChatView> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
                         decoration: BoxDecoration(
-                          color: AppColors.teal.withOpacity(0.08),
-                          border: Border.all(color: AppColors.teal),
+                          color: AppColors.appPrimaryColor.withOpacity(0.08),
+                          border: Border.all(color: AppColors.appPrimaryColor),
                           borderRadius: BorderRadius.circular(100),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(_iconFor(s.iconKey), size: 14, color: AppColors.teal),
+                            Icon(_iconFor(s.iconKey), size: 14, color: AppColors.appPrimaryColor),
                             const SizedBox(width: 6),
                             Text(
                               s.label,
-                              style: AppFonts.body(size: 12.5, weight: FontWeight.w500, color: AppColors.teal),
+                              style: AppFonts.body(size: 12.5, weight: FontWeight.w500, color: AppColors.appPrimaryColor),
                             ),
                           ],
                         ),
@@ -565,11 +565,11 @@ class _AgentChatViewState extends State<AgentChatView> {
             // ---- composer ----
             Container(
               padding: const EdgeInsets.all(8),
-              color: AppColors.panel,
+              color: AppColors.appSurfaceColor,
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.add, color: AppColors.dim),
+                    icon: const Icon(Icons.add, color: AppColors.appTextSecondaryColor),
                     onPressed: () => _notWiredYet('Attach'),
                   ),
                   Expanded(
@@ -580,21 +580,21 @@ class _AgentChatViewState extends State<AgentChatView> {
                       onSubmitted: _sending ? null : _send,
                       decoration: InputDecoration(
                         hintText: 'Message',
-                        hintStyle: AppFonts.body(size: 14, color: AppColors.faint),
+                        hintStyle: AppFonts.body(size: 14, color: AppColors.appTextMutedColor),
                         filled: true,
-                        fillColor: AppColors.panel2,
+                        fillColor: AppColors.appSurfaceVariantColor,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(100),
-                          borderSide: const BorderSide(color: AppColors.line),
+                          borderSide: const BorderSide(color: AppColors.appBorderColor),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(100),
-                          borderSide: const BorderSide(color: AppColors.line),
+                          borderSide: const BorderSide(color: AppColors.appBorderColor),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(100),
-                          borderSide: const BorderSide(color: AppColors.line2),
+                          borderSide: const BorderSide(color: AppColors.appBorderColorStrong),
                         ),
                       ),
                     ),
@@ -607,15 +607,15 @@ class _AgentChatViewState extends State<AgentChatView> {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: _sending ? AppColors.teal.withOpacity(0.35) : AppColors.teal,
+                        color: _sending ? AppColors.appPrimaryColor.withOpacity(0.35) : AppColors.appPrimaryColor,
                         shape: BoxShape.circle,
                       ),
                       child: _sending
                           ? const Padding(
                               padding: EdgeInsets.all(11),
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF04120D)),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.appOnPrimaryColor),
                             )
-                          : const Icon(Icons.arrow_upward, color: Color(0xFF04120D), size: 19),
+                          : const Icon(Icons.arrow_upward, color: AppColors.appOnPrimaryColor, size: 19),
                     ),
                   ),
                 ],

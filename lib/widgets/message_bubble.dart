@@ -16,7 +16,7 @@ class DayMarkWidget extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         decoration: BoxDecoration(
-          color: AppColors.panel2,
+          color: AppColors.appSurfaceVariantColor,
           borderRadius: BorderRadius.circular(100),
         ),
         child: Text(label, style: AppFonts.mono(size: 10.5, letterSpacing: 0.6)),
@@ -39,7 +39,7 @@ class TextBubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 3),
         padding: const EdgeInsets.fromLTRB(11, 8, 11, 6),
         decoration: BoxDecoration(
-          color: me ? AppColors.mine : AppColors.other,
+          color: me ? AppColors.appChatBubbleMineColor : AppColors.appChatBubbleOtherColor,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(11),
             topRight: const Radius.circular(11),
@@ -59,12 +59,12 @@ class TextBubble extends StatelessWidget {
                   message.time,
                   style: AppFonts.body(
                     size: 9.5,
-                    color: me ? Colors.white.withOpacity(0.45) : AppColors.faint,
+                    color: me ? Colors.white.withOpacity(0.45) : AppColors.appTextMutedColor,
                   ),
                 ),
                 if (me) ...[
                   const SizedBox(width: 3),
-                  const Text('✓✓', style: TextStyle(color: AppColors.green, fontSize: 9.5)),
+                  const Text('✓✓', style: TextStyle(color: AppColors.appSuccessColor, fontSize: 9.5)),
                 ],
               ],
             ),
@@ -95,7 +95,7 @@ class ProListBubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 3),
         padding: const EdgeInsets.fromLTRB(11, 8, 11, 8),
         decoration: const BoxDecoration(
-          color: AppColors.other,
+          color: AppColors.appChatBubbleOtherColor,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(11),
             topRight: Radius.circular(11),
@@ -113,14 +113,14 @@ class ProListBubble extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.28),
                 borderRadius: BorderRadius.circular(10),
-                border: const Border(left: BorderSide(color: AppColors.gold, width: 3)),
+                border: const Border(left: BorderSide(color: AppColors.appSecondaryColor, width: 3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     '◆ MATCHED · 1.2S',
-                    style: AppFonts.mono(size: 8.5, color: AppColors.gold, letterSpacing: 1.2),
+                    style: AppFonts.mono(size: 8.5, color: AppColors.appSecondaryColor, letterSpacing: 1.2),
                   ),
                   const SizedBox(height: 8),
                   for (final id in message.proIds)
@@ -130,7 +130,7 @@ class ProListBubble extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
-            Text(message.time, style: AppFonts.body(size: 9.5, color: AppColors.faint)),
+            Text(message.time, style: AppFonts.body(size: 9.5, color: AppColors.appTextMutedColor)),
           ],
         ),
       ),
@@ -166,7 +166,7 @@ class _TypingIndicatorState extends State<TypingIndicator> with SingleTickerProv
         margin: const EdgeInsets.symmetric(vertical: 3),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: const BoxDecoration(
-          color: AppColors.other,
+          color: AppColors.appChatBubbleOtherColor,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(11),
             topRight: Radius.circular(11),
@@ -190,7 +190,7 @@ class _TypingIndicatorState extends State<TypingIndicator> with SingleTickerProv
                       width: 6,
                       height: 6,
                       margin: const EdgeInsets.symmetric(horizontal: 2),
-                      decoration: const BoxDecoration(color: AppColors.dim, shape: BoxShape.circle),
+                      decoration: const BoxDecoration(color: AppColors.appTextSecondaryColor, shape: BoxShape.circle),
                     ),
                   ),
                 );

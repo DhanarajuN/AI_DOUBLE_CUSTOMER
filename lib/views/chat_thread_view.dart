@@ -93,7 +93,7 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
     _scrollToBottom();
 
     return Scaffold(
-      backgroundColor: AppColors.chatBg,
+      backgroundColor: AppColors.appChatBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -101,8 +101,8 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
             Container(
               padding: const EdgeInsets.fromLTRB(6, 14, 8, 12),
               decoration: const BoxDecoration(
-                color: AppColors.panel,
-                border: Border(bottom: BorderSide(color: AppColors.line)),
+                color: AppColors.appSurfaceColor,
+                border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
               ),
               child: Row(
                 children: [
@@ -127,21 +127,21 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
                               ),
                             ),
                             const SizedBox(width: 5),
-                            const Text('✓', style: TextStyle(color: AppColors.teal, fontSize: 12)),
+                            const Text('✓', style: TextStyle(color: AppColors.appPrimaryColor, fontSize: 12)),
                           ],
                         ),
                         Text(
                           convo.isAI ? 'assistant · online' : (pro?.role ?? 'professional'),
                           style: AppFonts.mono(
                             size: 10,
-                            color: convo.isAI ? AppColors.green : AppColors.dim,
+                            color: convo.isAI ? AppColors.appSuccessColor : AppColors.appTextSecondaryColor,
                           ),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.more_vert, color: AppColors.dim),
+                    icon: const Icon(Icons.more_vert, color: AppColors.appTextSecondaryColor),
                     onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Chat options'), behavior: SnackBarBehavior.floating),
                     ),
@@ -153,7 +153,7 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
             // ---- thread ----
             Expanded(
               child: Container(
-                color: AppColors.chatBg,
+                color: AppColors.appChatBackgroundColor,
                 child: ListView.builder(
                   controller: _scrollCtrl,
                   padding: const EdgeInsets.fromLTRB(12, 14, 12, 4),
@@ -186,7 +186,7 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
             if (vm.showChips)
               Container(
                 width: double.infinity,
-                color: AppColors.chatBg,
+                color: AppColors.appChatBackgroundColor,
                 padding: const EdgeInsets.fromLTRB(12, 7, 12, 3),
                 child: Wrap(
                   spacing: 7,
@@ -198,13 +198,13 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
                         decoration: BoxDecoration(
-                          color: AppColors.teal.withOpacity(0.08),
-                          border: Border.all(color: AppColors.teal),
+                          color: AppColors.appPrimaryColor.withOpacity(0.08),
+                          border: Border.all(color: AppColors.appPrimaryColor),
                           borderRadius: BorderRadius.circular(100),
                         ),
                         child: Text(
                           chip,
-                          style: AppFonts.body(size: 12.5, weight: FontWeight.w500, color: AppColors.teal),
+                          style: AppFonts.body(size: 12.5, weight: FontWeight.w500, color: AppColors.appPrimaryColor),
                         ),
                       ),
                     );
@@ -215,11 +215,11 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
             // ---- composer ----
             Container(
               padding: const EdgeInsets.all(8),
-              color: AppColors.panel,
+              color: AppColors.appSurfaceColor,
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.add, color: AppColors.dim),
+                    icon: const Icon(Icons.add, color: AppColors.appTextSecondaryColor),
                     onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Attach'), behavior: SnackBarBehavior.floating),
                     ),
@@ -233,21 +233,21 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
                       onSubmitted: (_) => _send(vm),
                       decoration: InputDecoration(
                         hintText: 'Message',
-                        hintStyle: AppFonts.body(size: 14, color: AppColors.faint),
+                        hintStyle: AppFonts.body(size: 14, color: AppColors.appTextMutedColor),
                         filled: true,
-                        fillColor: AppColors.panel2,
+                        fillColor: AppColors.appSurfaceVariantColor,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(100),
-                          borderSide: const BorderSide(color: AppColors.line),
+                          borderSide: const BorderSide(color: AppColors.appBorderColor),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(100),
-                          borderSide: const BorderSide(color: AppColors.line),
+                          borderSide: const BorderSide(color: AppColors.appBorderColor),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(100),
-                          borderSide: const BorderSide(color: AppColors.line2),
+                          borderSide: const BorderSide(color: AppColors.appBorderColorStrong),
                         ),
                       ),
                     ),
@@ -259,8 +259,8 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
                     child: Container(
                       width: 42,
                       height: 42,
-                      decoration: const BoxDecoration(color: AppColors.teal, shape: BoxShape.circle),
-                      child: const Icon(Icons.arrow_upward, color: Color(0xFF04120D), size: 19),
+                      decoration: const BoxDecoration(color: AppColors.appPrimaryColor, shape: BoxShape.circle),
+                      child: const Icon(Icons.arrow_upward, color: AppColors.appOnPrimaryColor, size: 19),
                     ),
                   ),
                 ],
@@ -277,7 +277,7 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
       return Container(
         width: 40,
         height: 40,
-        decoration: const BoxDecoration(gradient: AppColors.tealGradient, shape: BoxShape.circle),
+        decoration: const BoxDecoration(gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
         child: Stack(
           children: [
             const Center(child: Text('AI', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15))),
@@ -288,9 +288,9 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
                 width: 12,
                 height: 12,
                 decoration: BoxDecoration(
-                  color: AppColors.gold,
+                  color: AppColors.appSecondaryColor,
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.panel, width: 2),
+                  border: Border.all(color: AppColors.appSurfaceColor, width: 2),
                 ),
               ),
             ),
@@ -298,7 +298,7 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
         ),
       );
     }
-    final gradient = pro?.gradient as List<Color>? ?? const [AppColors.teal, AppColors.tealDeep];
+    final gradient = pro?.gradient as List<Color>? ?? const [AppColors.appPrimaryColor, AppColors.appPrimaryDarkColor];
     final initials = pro?.initials as String? ?? '';
     return Container(
       width: 40,

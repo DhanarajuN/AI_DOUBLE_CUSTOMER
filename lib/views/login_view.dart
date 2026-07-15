@@ -52,7 +52,7 @@ class _LoginBodyState extends State<_LoginBody> {
     final vm = context.watch<LoginViewModel>();
 
     return Scaffold(
-      backgroundColor: AppColors.app,
+      backgroundColor: AppColors.appBackgroundColor,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -69,7 +69,7 @@ class _LoginBodyState extends State<_LoginBody> {
                       height: 64,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        gradient: AppColors.tealGradient,
+                        gradient: AppColors.appPrimaryGradient,
                         borderRadius: BorderRadius.circular(18),
                       ),
                       child: const Icon(Icons.forum_outlined, color: Colors.white, size: 30),
@@ -84,7 +84,7 @@ class _LoginBodyState extends State<_LoginBody> {
                           const TextSpan(text: 'AI '),
                           TextSpan(
                             text: 'Double',
-                            style: AppFonts.display(size: 24, weight: FontWeight.w400, color: AppColors.gold)
+                            style: AppFonts.display(size: 24, weight: FontWeight.w400, color: AppColors.appSecondaryColor)
                                 .copyWith(fontStyle: FontStyle.italic),
                           ),
                         ],
@@ -93,18 +93,18 @@ class _LoginBodyState extends State<_LoginBody> {
                   ),
                   const SizedBox(height: 6),
                   Center(
-                    child: Text('Sign in to continue', style: AppFonts.body(size: 13.5, color: AppColors.dim)),
+                    child: Text('Sign in to continue', style: AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor)),
                   ),
                   const SizedBox(height: 32),
                   if (vm.errorMessage != null) ...[
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.goldDim,
-                        border: Border.all(color: AppColors.gold.withOpacity(0.3)),
+                        color: AppColors.appSecondaryColorDim,
+                        border: Border.all(color: AppColors.appSecondaryColor.withOpacity(0.3)),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Text(vm.errorMessage!, style: AppFonts.body(size: 12.5, color: AppColors.gold)),
+                      child: Text(vm.errorMessage!, style: AppFonts.body(size: 12.5, color: AppColors.appSecondaryColor)),
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -127,7 +127,7 @@ class _LoginBodyState extends State<_LoginBody> {
                     suffixIcon: IconButton(
                       icon: Icon(
                         vm.obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                        color: AppColors.faint,
+                        color: AppColors.appTextMutedColor,
                         size: 19,
                       ),
                       onPressed: vm.toggleObscurePassword,
@@ -141,8 +141,8 @@ class _LoginBodyState extends State<_LoginBody> {
                   const SizedBox(height: 24),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.teal,
-                      foregroundColor: const Color(0xFF04120D),
+                      backgroundColor: AppColors.appPrimaryColor,
+                      foregroundColor: AppColors.appOnPrimaryColor,
                       padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -151,7 +151,7 @@ class _LoginBodyState extends State<_LoginBody> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2.2, color: Color(0xFF04120D)),
+                            child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.appOnPrimaryColor),
                           )
                         : const Text('Sign in', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                   ),
@@ -174,7 +174,7 @@ class _LoginBodyState extends State<_LoginBody> {
   }) {
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: AppColors.line),
+      borderSide: const BorderSide(color: AppColors.appBorderColor),
     );
     return TextFormField(
       controller: controller,
@@ -184,13 +184,13 @@ class _LoginBodyState extends State<_LoginBody> {
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: AppFonts.body(size: 13, color: AppColors.dim),
+        labelStyle: AppFonts.body(size: 13, color: AppColors.appTextSecondaryColor),
         filled: true,
-        fillColor: AppColors.panel2,
+        fillColor: AppColors.appSurfaceVariantColor,
         suffixIcon: suffixIcon,
         border: border,
         enabledBorder: border,
-        focusedBorder: border.copyWith(borderSide: const BorderSide(color: AppColors.teal)),
+        focusedBorder: border.copyWith(borderSide: const BorderSide(color: AppColors.appPrimaryColor)),
         errorBorder: border.copyWith(borderSide: const BorderSide(color: Colors.redAccent)),
       ),
     );
