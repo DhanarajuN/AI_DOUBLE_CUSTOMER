@@ -1,6 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../repositories/auth_repository.dart';
 import '../services/librechat_service.dart';
 import '../theme/app_theme.dart';
+
+/// Key stamped on a synthetic sheet entry for an ACTIVE_AGENTS name that
+/// has no matching LibreChat agent — shown dimmed and non-tappable.
+const _notConfiguredKey = '_notConfigured';
+
+/// Builds the sheet's agent list from [activeAgentNames] (from
+/// AuthRepository.fetchModuleConstants — /api/v1/module-constants'
+/// ACTIVE_AGENTS, comma-separated, e.g. "Insurance,Education,Home
+/// Services,Healthcare,Integra - Claims"), in that order. Every name is
+/// shown even if [agents] (LibreChat's list) has no match for it — those
+/// entries are marked [_notConfiguredKey] so they render dimmed and
+/// non-tappable instead of opening a chat. Null (not loaded/failed) or
+/// empty (key missing/blank) activeAgentNames falls back to showing every
+/// LibreChat agent unfiltered.
+List<Map<String, dynamic>> _buildSheetAgents(List<Map<String, dynamic>> agents, List<String>? activeAgentNames) {
+  debugPrint('[NewRequestSheet] activeAgentNames from AuthRepository: $activeAgentNames');
+  debugPrint('[NewRequestSheet] agent names from LibreChat: ${agents.map((a) => a['name']).toList()}');
+  if (activeAgentNames == null || activeAgentNames.isEmpty) {
+    debugPrint('[NewRequestSheet] no active-agent filter — showing all ${agents.length} agents');
+    return agents;
+  }
+  final byName = {for (final a in agents) ((a['name'] as String?) ?? '').trim().toLowerCase(): a};
+  final result = activeAgentNames.map((name) {
+    final match = byName[name.trim().toLowerCase()];
+    if (match != null) return match;
+    return <String, dynamic>{'name': name, _notConfiguredKey: true};
+  }).toList();
+  debugPrint('[NewRequestSheet] built ${result.length} sheet entries '
+      '(${result.where((a) => a[_notConfiguredKey] != true).length} matched, '
+      '${result.where((a) => a[_notConfiguredKey] == true).length} not configured)');
+  return result;
+}
 
 /// "New request" bottom sheet — lists agents fetched live from the
 /// LibreChat backend (see [LibreChatService.fetchAgents]) and returns the
@@ -39,7 +73,9 @@ Future<Map<String, dynamic>?> showNewRequestSheet(BuildContext context) {
               ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.5),
                 child: FutureBuilder<List<Map<String, dynamic>>>(
-                  future: LibreChatService.fetchAgents(),
+                  future: LibreChatService.fetchAgents().then(
+                    (agents) => _buildSheetAgents(agents, context.read<AuthRepository>().activeAgentNames),
+                  ),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState != ConnectionState.done) {
                       return const Padding(
@@ -75,37 +111,41 @@ Future<Map<String, dynamic>?> showNewRequestSheet(BuildContext context) {
                       itemCount: agents.length,
                       itemBuilder: (context, index) {
                         final agent = agents[index];
+                        final notConfigured = agent[_notConfiguredKey] == true;
                         final name = agent['name'] as String? ?? 'Untitled agent';
-                        final description = agent['description'] as String? ?? '';
+                        final description = notConfigured ? 'Not configured yet' : (agent['description'] as String? ?? '');
                         return InkWell(
-                          onTap: () => Navigator.pop(ctx, agent),
+                          onTap: notConfigured ? null : () => Navigator.pop(ctx, agent),
                           borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 9),
-                            padding: const EdgeInsets.all(13),
-                            decoration: BoxDecoration(
-                              color: AppColors.panel,
-                              border: Border.all(color: AppColors.line),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _AgentAvatar(avatar: agent['avatar'] as Map<String, dynamic>?),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(name, style: AppFonts.body(size: 14, weight: FontWeight.w600)),
-                                      if (description.isNotEmpty) ...[
-                                        const SizedBox(height: 1),
-                                        Text(description, style: AppFonts.body(size: 12, color: AppColors.dim)),
+                          child: Opacity(
+                            opacity: notConfigured ? 0.5 : 1,
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 9),
+                              padding: const EdgeInsets.all(13),
+                              decoration: BoxDecoration(
+                                color: AppColors.panel,
+                                border: Border.all(color: AppColors.line),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _AgentAvatar(avatar: agent['avatar'] as Map<String, dynamic>?),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(name, style: AppFonts.body(size: 14, weight: FontWeight.w600)),
+                                        if (description.isNotEmpty) ...[
+                                          const SizedBox(height: 1),
+                                          Text(description, style: AppFonts.body(size: 12, color: AppColors.dim)),
+                                        ],
                                       ],
-                                    ],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         );

@@ -8,6 +8,8 @@ class ServerUrls {
 
   static const String login = '/api/v1/users/login';
 
+  static const String moduleConstants = '/api/v1/module-constants';
+
   // LibreChat backend — separate service used only for the background
   static const String librechatURL = 'https://librechat-backend-166239710803.asia-south1.run.app';
 
