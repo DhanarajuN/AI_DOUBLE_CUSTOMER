@@ -189,14 +189,14 @@ class _ChatListViewState extends State<ChatListView> {
             Container(
               width: 50,
               height: 50,
-              decoration: const BoxDecoration(gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
+              decoration: BoxDecoration(gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
               child: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Container(
                 padding: const EdgeInsets.only(bottom: 11),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
                 ),
                 child: Row(
@@ -224,7 +224,7 @@ class _ChatListViewState extends State<ChatListView> {
   Widget _buildBar(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.appSurfaceColor,
         border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
       ),

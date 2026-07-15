@@ -102,11 +102,11 @@ Future<void> showBookingSheet({
                         fillColor: AppColors.appSurfaceVariantColor,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(11),
-                          borderSide: const BorderSide(color: AppColors.appBorderColor),
+                          borderSide: BorderSide(color: AppColors.appBorderColor),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(11),
-                          borderSide: const BorderSide(color: AppColors.appBorderColor),
+                          borderSide: BorderSide(color: AppColors.appBorderColor),
                         ),
                       ),
                     ),

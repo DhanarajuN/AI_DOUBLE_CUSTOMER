@@ -1,42 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// The app's single color palette, named by role (not by hue) so the whole
-/// app can be re-themed by editing values here — e.g. swapping
-/// [appPrimaryColor]/[appPrimaryDarkColor] from teal to blue restyles every
-/// button, link, and accent everywhere they're used.
+
 class AppColors {
   static const appInkColor = Color(0xFF050807);
   static const appBackgroundColor = Color(0xFF0B141A);
   static const appChatBackgroundColor = Color(0xFF0A1310);
   static const appSurfaceColor = Color(0xFF111F1A);
   static const appSurfaceVariantColor = Color(0xFF16241F);
-  static const appBorderColor = Color(0x1A78BEAA); // rgba(120,190,170,.10)
-  static const appBorderColorStrong = Color(0x3878BEAA); // rgba(120,190,170,.22)
+
   static const appPrimaryColor = Color(0xFF12B886);
-  static const appPrimaryDarkColor = Color(0xFF0A5C48);
+
+ 
+  static final appPrimaryDarkColor = Color.lerp(appPrimaryColor, Colors.black, 0.35)!;
+  static final appBorderColor = appPrimaryColor.withOpacity(0.10);
+  static final appBorderColorStrong = appPrimaryColor.withOpacity(0.22);
+  static final appChatBubbleMineColor = Color.lerp(appPrimaryColor, appBackgroundColor, 0.78)!;
+  static final appPrimaryGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [appPrimaryColor, appPrimaryDarkColor],
+  );
+
   static const appSecondaryColor = Color(0xFFE0B25C);
   static const appSecondaryColorDim = Color(0x24E0B25C);
   static const appSuccessColor = Color(0xFF3DDC97);
   static const appTextColor = Color(0xFFE8F0EC);
   static const appTextSecondaryColor = Color(0xFF8BA49B);
   static const appTextMutedColor = Color(0xFF5C716A);
-  static const appChatBubbleMineColor = Color(0xFF134D3D);
   static const appChatBubbleOtherColor = Color(0xFF1C2B25);
 
-  // Text/icon color for content sitting on top of the primary accent
-  // (FABs, send buttons, primary CTAs) — kept as one named color so it
-  // stays in sync if the accent color ever changes.
-  static const appOnPrimaryColor = Color(0xFF04120D);
 
-  static const appPrimaryGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [appPrimaryColor, appPrimaryDarkColor],
-  );
+  static const appOnPrimaryColor = Color(0xFF04120D);
 }
 
-/// Fonts: Fraunces (display/serif), Inter Tight (body), JetBrains Mono (mono)
 class AppFonts {
   static TextStyle display({
     double size = 19,
@@ -91,7 +88,7 @@ ThemeData buildAppTheme() {
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: AppColors.appBorderColor),
+        side: BorderSide(color: AppColors.appBorderColor),
       ),
     ),
   );

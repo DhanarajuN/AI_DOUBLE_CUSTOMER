@@ -408,7 +408,7 @@ class _AgentChatViewState extends State<AgentChatView> {
             // ---- app bar: name + avatar from the agent response ----
             Container(
               padding: const EdgeInsets.fromLTRB(6, 14, 8, 12),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.appSurfaceColor,
                 border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
               ),
@@ -421,7 +421,7 @@ class _AgentChatViewState extends State<AgentChatView> {
                   Container(
                     width: 40,
                     height: 40,
-                    decoration: const BoxDecoration(gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
+                    decoration: BoxDecoration(gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
                     child: Stack(
                       children: [
                         Center(child: Icon(avatarIcon, color: Colors.white, size: 18)),
@@ -586,15 +586,15 @@ class _AgentChatViewState extends State<AgentChatView> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(100),
-                          borderSide: const BorderSide(color: AppColors.appBorderColor),
+                          borderSide: BorderSide(color: AppColors.appBorderColor),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(100),
-                          borderSide: const BorderSide(color: AppColors.appBorderColor),
+                          borderSide: BorderSide(color: AppColors.appBorderColor),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(100),
-                          borderSide: const BorderSide(color: AppColors.appBorderColorStrong),
+                          borderSide: BorderSide(color: AppColors.appBorderColorStrong),
                         ),
                       ),
                     ),

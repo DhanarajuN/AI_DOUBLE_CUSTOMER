@@ -38,7 +38,7 @@ class ChatRow extends StatelessWidget {
             Expanded(
               child: Container(
                 padding: const EdgeInsets.only(bottom: 11),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
                 ),
                 child: Column(
@@ -140,7 +140,7 @@ class ChatRow extends StatelessWidget {
       return Container(
         width: 50,
         height: 50,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: AppColors.appPrimaryGradient,
           shape: BoxShape.circle,
         ),
@@ -166,7 +166,7 @@ class ChatRow extends StatelessWidget {
         ),
       );
     }
-    final gradient = pro?.gradient ?? const [AppColors.appPrimaryColor, AppColors.appPrimaryDarkColor];
+    final gradient = pro?.gradient ?? [AppColors.appPrimaryColor, AppColors.appPrimaryDarkColor];
     final initials = pro?.initials ?? '';
     return Container(
       width: 50,

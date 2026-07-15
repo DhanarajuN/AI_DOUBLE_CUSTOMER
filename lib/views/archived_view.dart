@@ -35,7 +35,7 @@ class _ArchivedBody extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.fromLTRB(6, 14, 14, 12),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.appSurfaceColor,
                 border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
               ),

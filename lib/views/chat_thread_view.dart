@@ -100,7 +100,7 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
             // ---- chat bar ----
             Container(
               padding: const EdgeInsets.fromLTRB(6, 14, 8, 12),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.appSurfaceColor,
                 border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
               ),
@@ -239,15 +239,15 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(100),
-                          borderSide: const BorderSide(color: AppColors.appBorderColor),
+                          borderSide: BorderSide(color: AppColors.appBorderColor),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(100),
-                          borderSide: const BorderSide(color: AppColors.appBorderColor),
+                          borderSide: BorderSide(color: AppColors.appBorderColor),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(100),
-                          borderSide: const BorderSide(color: AppColors.appBorderColorStrong),
+                          borderSide: BorderSide(color: AppColors.appBorderColorStrong),
                         ),
                       ),
                     ),
@@ -277,7 +277,7 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
       return Container(
         width: 40,
         height: 40,
-        decoration: const BoxDecoration(gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
+        decoration: BoxDecoration(gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
         child: Stack(
           children: [
             const Center(child: Text('AI', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15))),
@@ -298,7 +298,7 @@ class _ChatThreadBodyState extends State<_ChatThreadBody> {
         ),
       );
     }
-    final gradient = pro?.gradient as List<Color>? ?? const [AppColors.appPrimaryColor, AppColors.appPrimaryDarkColor];
+    final gradient = pro?.gradient as List<Color>? ?? [AppColors.appPrimaryColor, AppColors.appPrimaryDarkColor];
     final initials = pro?.initials as String? ?? '';
     return Container(
       width: 40,

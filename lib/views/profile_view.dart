@@ -59,7 +59,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
             // ---- bar ----
             Container(
               padding: const EdgeInsets.fromLTRB(6, 14, 14, 12),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.appSurfaceColor,
                 border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
               ),
@@ -129,7 +129,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                             decoration: BoxDecoration(
                               border: i == 0
                                   ? null
-                                  : const Border(top: BorderSide(color: AppColors.appBorderColor)),
+                                  : Border(top: BorderSide(color: AppColors.appBorderColor)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,7 +173,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                         return Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            border: i == 0 ? null : const Border(top: BorderSide(color: AppColors.appBorderColor)),
+                            border: i == 0 ? null : Border(top: BorderSide(color: AppColors.appBorderColor)),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,7 +182,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                                 width: 34,
                                 height: 34,
                                 alignment: Alignment.center,
-                                decoration: const BoxDecoration(gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
+                                decoration: BoxDecoration(gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
                                 child: Text(
                                   r.initials,
                                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12),
@@ -219,7 +219,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
             // ---- CTA ----
             Container(
               padding: const EdgeInsets.all(14),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.appBackgroundColor,
                 border: Border(top: BorderSide(color: AppColors.appBorderColor)),
               ),
@@ -228,7 +228,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                   OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                      side: const BorderSide(color: AppColors.appBorderColorStrong),
+                      side: BorderSide(color: AppColors.appBorderColorStrong),
                       backgroundColor: AppColors.appSurfaceColor,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),

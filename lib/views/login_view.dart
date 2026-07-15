@@ -174,7 +174,7 @@ class _LoginBodyState extends State<_LoginBody> {
   }) {
     final border = OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: AppColors.appBorderColor),
+      borderSide: BorderSide(color: AppColors.appBorderColor),
     );
     return TextFormField(
       controller: controller,
