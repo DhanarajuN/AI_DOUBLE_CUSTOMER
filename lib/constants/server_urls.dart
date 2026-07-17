@@ -10,6 +10,16 @@ class ServerUrls {
 
   static const String moduleConstants = '/api/v1/module-constants';
 
+  // Google SSO — see AuthRepository.loginWithGoogle. The scheme must match
+  // android/app/build.gradle's manifestPlaceholders `callbackScheme`.
+  static const String ssoCallbackScheme = 'aidoublecustomer';
+
+  static const String ssoCallbackUrl = '$ssoCallbackScheme://auth-redirect';
+
+  static const String ssoGoogleLogin = '/api/v1/sso/Google/login';
+
+  static const String ssoSessionLogin = '/api/v1/users/sso/session-login';
+
   // LibreChat backend — separate service used only for the background
   static const String librechatURL = 'https://librechat-backend-166239710803.asia-south1.run.app';
 

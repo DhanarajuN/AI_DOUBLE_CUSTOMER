@@ -1,5 +1,5 @@
 name: ai_double_customer
-description: AI Double Customer - MVVM Flutter app (customer chat flow)
+description: AI Double Customer -  (customer chat flow)
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -14,6 +14,7 @@ dependencies:
   http: ^1.2.2
   shared_preferences: ^2.3.3
   flutter_markdown_plus: ^1.0.0+1
+  flutter_web_auth_2: ^4.1.0
 
 dev_dependencies:
   flutter_test:

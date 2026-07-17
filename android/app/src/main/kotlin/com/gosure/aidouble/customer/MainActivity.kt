@@ -1,4 +1,4 @@
-package com.example.ai_double_customer
+package com.gosure.aidouble.customer
 
 import io.flutter.embedding.android.FlutterActivity
 

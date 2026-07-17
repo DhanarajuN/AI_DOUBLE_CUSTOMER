@@ -51,8 +51,8 @@ class ApiClient {
     return _decode(response);
   }
 
-  Future<dynamic> post(String path, {Object? body}) async {
-    final response = await _client.post(_uri(path), headers: _headers(), body: _encode(body));
+  Future<dynamic> post(String path, {Object? body, Map<String, String>? query}) async {
+    final response = await _client.post(_uri(path, query), headers: _headers(), body: _encode(body));
     return _decode(response);
   }
 
