@@ -11,27 +11,8 @@ class ApiException implements Exception {
   String toString() => 'ApiException($statusCode): $message';
 }
 
-/// Thin HTTP wrapper shared by every Api*Repository implementation (see
-/// repositories/pro_repository.dart etc.) so they don't each reimplement
-/// headers, JSON encoding, the access token, and error handling.
-///
-/// Usage once you're ready to swap a Static*Repository for a real backend:
-///
-/// ```dart
-/// final api = ApiClient(baseUrl: 'https://api.example.com');
-/// api.setAccessToken(token); // after login, or on app start if restored
-///
-/// class ApiProRepository implements ProRepository {
-///   final ApiClient _api;
-///   ApiProRepository(this._api);
-///
-///   @override
-///   Future<Pro?> getById(String id) async {
-///     final json = await _api.get('/pros/$id');
-///     return json == null ? null : Pro.fromJson(json);
-///   }
-/// }
-/// ```
+/// Thin HTTP wrapper shared by every repository so they don't each
+/// reimplement headers, JSON encoding, the access token, and error handling.
 class ApiClient {
   final String baseUrl;
   final String? tenant;

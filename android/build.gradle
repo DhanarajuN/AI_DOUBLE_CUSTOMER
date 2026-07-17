@@ -5,6 +5,28 @@ allprojects {
     }
 }
 
+// Several plugins' own Android library modules default to Java 8
+// compileOptions, which javac warns as obsolete now that our app targets 17
+// (see app/build.gradle) — force every subproject onto the same version.
+// Kotlin's jvmTarget must be forced to match too, or Gradle rejects the
+// mix ("Inconsistent JVM-target compatibility") for any plugin with Kotlin
+// sources (e.g. flutter_web_auth_2).
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty("android")) {
+            project.android.compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+        project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+            kotlinOptions {
+                jvmTarget = "17"
+            }
+        }
+    }
+}
+
 rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
@@ -16,3 +38,8 @@ subprojects {
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
+
+// storePassword=android
+// keyPassword=android
+// keyAlias=key0
+// storeFile=../ai_double_customer.jks

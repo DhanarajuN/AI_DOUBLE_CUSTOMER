@@ -38,10 +38,9 @@ class AgentThreadArgs {
 /// Chat page for a single LibreChat agent. Either a fresh conversation
 /// (opened after picking one from showNewRequestSheet(), see [open]) or an
 /// existing one resumed from the chat list with its full history (see
-/// [openExisting]). Mirrors ChatThreadView's static layout, but the app bar
-/// (name/avatar) and starter chips come from the real agent response, and
-/// messages are sent/streamed via LibreChatService.sendChatMessage/
-/// streamChat.
+/// [openExisting]). The app bar (name/avatar) and starter chips come from
+/// the real agent response, and messages are sent/streamed via
+/// LibreChatService.sendChatMessage/streamChat.
 class AgentChatView extends StatefulWidget {
   final Map<String, dynamic> agent;
   final String? initialConversationId;

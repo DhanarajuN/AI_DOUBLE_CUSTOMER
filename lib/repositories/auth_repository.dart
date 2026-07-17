@@ -64,17 +64,12 @@ class AuthRepository extends ChangeNotifier {
           : null;
       final data = first?['data'] as Map<String, dynamic>?;
       final activeAgents = data?['ACTIVE_AGENTS'] as String?;
-      debugPrint('[ModuleConstants] ACTIVE_AGENTS raw string: $activeAgents');
       _activeAgentNames = activeAgents
           ?.split(',')
           .map((s) => s.trim())
           .where((s) => s.isNotEmpty)
           .toList();
-      debugPrint(
-          '[ModuleConstants] parsed activeAgentNames: $_activeAgentNames');
-    } catch (e, st) {
-      debugPrint('[ModuleConstants] fetchModuleConstants failed: $e');
-      debugPrint('$st');
+    } catch (_) {
       // Leave _activeAgentNames as-is (null on first failure) — the sheet
       // falls back to showing every agent rather than none.
     }
@@ -124,39 +119,29 @@ class AuthRepository extends ChangeNotifier {
         'tenantName': ServerUrls.tenant,
         'redirectUrl': ServerUrls.ssoCallbackUrl,
       });
-      debugPrint('[SSO] opening browser: $authUrl');
-      debugPrint('[SSO] callbackUrlScheme: ${ServerUrls.ssoCallbackScheme}');
 
       final callback = await FlutterWebAuth2.authenticate(
         url: authUrl.toString(),
         callbackUrlScheme: ServerUrls.ssoCallbackScheme,
       );
-      debugPrint('[SSO] got callback: $callback');
       final callbackUri = Uri.parse(callback);
 
       final error = callbackUri.queryParameters['error'];
       if (error != null) {
-        debugPrint(
-            '[SSO] provider returned error: $error / ${callbackUri.queryParameters['error_description']}');
         _errorMessage = callbackUri.queryParameters['error_description'] ??
             'Google sign-in failed.';
         return false;
       }
       final sessionId = callbackUri.queryParameters['sessionId'];
-      debugPrint('[SSO] sessionId: $sessionId');
       if (sessionId == null) {
-        debugPrint(
-            '[SSO] no sessionId in callback query params: ${callbackUri.queryParameters}');
         _errorMessage = 'Google sign-in did not return a session.';
         return false;
       }
 
-      debugPrint('[SSO] exchanging sessionId at ${ServerUrls.ssoSessionLogin}');
       final json = await _apiClient.post(
         ServerUrls.ssoSessionLogin,
         query: {'sessionId': sessionId},
       ) as Map<String, dynamic>;
-      debugPrint('[SSO] session-login response: $json');
 
       await _completeLogin(
         accessToken: json['token'] as String,
@@ -166,21 +151,14 @@ class AuthRepository extends ChangeNotifier {
         username: json['username'] as String,
         roleName: json['accRoleName'] as String,
       );
-      debugPrint(
-          '[SSO] login complete, currentUser: ${_currentUser?.username}');
       return true;
-    } on PlatformException catch (e) {
+    } on PlatformException {
       // User closed the browser tab / cancelled the Google sign-in.
-      debugPrint(
-          '[SSO] PlatformException (likely user cancelled): ${e.code} ${e.message}');
       return false;
     } on ApiException catch (e) {
-      debugPrint('[SSO] ApiException: ${e.statusCode} ${e.message}');
       _errorMessage = e.message;
       return false;
-    } catch (e, st) {
-      debugPrint('[SSO] unexpected error: $e');
-      debugPrint('$st');
+    } catch (_) {
       _errorMessage = 'Could not complete Google sign-in. Please try again.';
       return false;
     } finally {
@@ -189,7 +167,6 @@ class AuthRepository extends ChangeNotifier {
     }
   }
 
-  /// Shared tail of [login] and [loginWithGoogle]: persist the session,
   /// authenticate the [ApiClient], and load ACTIVE_AGENTS.
   Future<void> _completeLogin({
     required String accessToken,

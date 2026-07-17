@@ -5,9 +5,6 @@ import 'package:provider/provider.dart';
 import 'constants/app_constants.dart';
 import 'constants/server_urls.dart';
 import 'repositories/auth_repository.dart';
-import 'repositories/convo_repository.dart';
-import 'repositories/pro_repository.dart';
-import 'repositories/script_repository.dart';
 import 'routes/app_routes.dart';
 import 'services/api_client.dart';
 import 'services/session_storage.dart';
@@ -83,13 +80,6 @@ class _AiDoubleAppState extends State<AiDoubleApp> with WidgetsBindingObserver {
         Provider<SessionStorage>(create: (_) => SessionStorage()),
         ChangeNotifierProvider<AuthRepository>(
           create: (ctx) => AuthRepository(ctx.read<ApiClient>(), ctx.read<SessionStorage>()),
-        ),
-        // Data layer — swap these for API-backed implementations later;
-        // nothing above this layer needs to change.
-        Provider<ProRepository>(create: (_) => StaticProRepository()),
-        Provider<ScriptRepository>(create: (_) => StaticScriptRepository()),
-        ChangeNotifierProvider<ConvoRepository>(
-          create: (ctx) => ConvoRepository(ctx.read<ScriptRepository>()),
         ),
       ],
       child: MaterialApp(
