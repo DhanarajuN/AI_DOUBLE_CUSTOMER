@@ -1,8 +1,31 @@
 import 'package:flutter/material.dart';
+import '../services/app_logger.dart';
 import '../views/agent_chat_view.dart';
 import '../views/chat_list_view.dart';
 import '../views/login_view.dart';
 import '../views/splash_view.dart';
+
+/// Logs every route push/pop, named or not (agent_chat_view.dart's
+/// open()/openExisting() push a MaterialPageRoute directly, bypassing
+/// [AppRoutes.onGenerateRoute]) — attach to MaterialApp.navigatorObservers.
+class AppNavigatorObserver extends NavigatorObserver {
+  String _label(Route<dynamic>? route) => route?.settings.name ?? route?.runtimeType.toString() ?? 'unknown';
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    AppLogger.i('Navigation', 'push ${_label(route)} (from ${_label(previousRoute)})');
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    AppLogger.i('Navigation', 'pop ${_label(route)} (back to ${_label(previousRoute)})');
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    AppLogger.i('Navigation', 'replace ${_label(oldRoute)} with ${_label(newRoute)}');
+  }
+}
 
 /// Central named-route table for the whole app. Every screen push goes
 /// through [onGenerateRoute] — via Navigator.pushNamed and friends — so

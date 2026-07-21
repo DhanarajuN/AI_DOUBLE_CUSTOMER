@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../repositories/auth_repository.dart';
 import '../routes/app_routes.dart';
-import '../services/librechat_service.dart';
 import '../theme/app_theme.dart';
 
 /// First screen shown on launch — restores any saved session while a
@@ -26,7 +25,6 @@ class _SplashViewState extends State<SplashView> {
     final authRepository = context.read<AuthRepository>();
     await Future.wait([
       authRepository.restoreSession(),
-      LibreChatService.loginAndCacheToken(),
       Future.delayed(const Duration(milliseconds: 900)),
     ]);
     if (!mounted) return;

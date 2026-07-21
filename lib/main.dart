@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -7,11 +8,28 @@ import 'constants/server_urls.dart';
 import 'repositories/auth_repository.dart';
 import 'routes/app_routes.dart';
 import 'services/api_client.dart';
+import 'services/app_logger.dart';
 import 'services/session_storage.dart';
 import 'theme/app_theme.dart';
 
 void main() {
-  runApp(const AiDoubleApp());
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    await AppLogger.init();
+
+    FlutterError.onError = (details) {
+      AppLogger.e('FlutterError', details.exceptionAsString(), details.exception, details.stack);
+      FlutterError.presentError(details);
+    };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      AppLogger.e('PlatformDispatcher', 'Uncaught async error', error, stack);
+      return true;
+    };
+
+    runApp(const AiDoubleApp());
+  }, (error, stack) {
+    AppLogger.e('runZonedGuarded', 'Uncaught zone error', error, stack);
+  });
 }
 
 class AiDoubleApp extends StatefulWidget {
@@ -68,6 +86,11 @@ class _AiDoubleAppState extends State<AiDoubleApp> with WidgetsBindingObserver {
   void didChangePlatformBrightness() => _checkBrightness();
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    AppLogger.i('Lifecycle', state.name);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
@@ -90,6 +113,7 @@ class _AiDoubleAppState extends State<AiDoubleApp> with WidgetsBindingObserver {
         theme: buildAppTheme(),
         initialRoute: AppRoutes.splash,
         onGenerateRoute: AppRoutes.onGenerateRoute,
+        navigatorObservers: [AppNavigatorObserver()],
       ),
     );
   }

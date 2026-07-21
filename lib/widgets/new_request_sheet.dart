@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../repositories/auth_repository.dart';
+import '../services/app_logger.dart';
 import '../services/librechat_service.dart';
 import '../theme/app_theme.dart';
 
@@ -18,10 +19,8 @@ const _notConfiguredKey = '_notConfigured';
 /// empty (key missing/blank) activeAgentNames falls back to showing every
 /// LibreChat agent unfiltered.
 List<Map<String, dynamic>> _buildSheetAgents(List<Map<String, dynamic>> agents, List<String>? activeAgentNames) {
-  debugPrint('[NewRequestSheet] activeAgentNames from AuthRepository: $activeAgentNames');
-  debugPrint('[NewRequestSheet] agent names from LibreChat: ${agents.map((a) => a['name']).toList()}');
   if (activeAgentNames == null || activeAgentNames.isEmpty) {
-    debugPrint('[NewRequestSheet] no active-agent filter — showing all ${agents.length} agents');
+    AppLogger.i('NewRequestSheet', 'no active-agent filter — showing all ${agents.length} agents');
     return agents;
   }
   final byName = {for (final a in agents) ((a['name'] as String?) ?? '').trim().toLowerCase(): a};
@@ -30,9 +29,12 @@ List<Map<String, dynamic>> _buildSheetAgents(List<Map<String, dynamic>> agents, 
     if (match != null) return match;
     return <String, dynamic>{'name': name, _notConfiguredKey: true};
   }).toList();
-  debugPrint('[NewRequestSheet] built ${result.length} sheet entries '
-      '(${result.where((a) => a[_notConfiguredKey] != true).length} matched, '
-      '${result.where((a) => a[_notConfiguredKey] == true).length} not configured)');
+  AppLogger.i(
+    'NewRequestSheet',
+    'built ${result.length} sheet entries '
+        '(${result.where((a) => a[_notConfiguredKey] != true).length} matched, '
+        '${result.where((a) => a[_notConfiguredKey] == true).length} not configured)',
+  );
   return result;
 }
 
@@ -90,7 +92,7 @@ Future<Map<String, dynamic>?> showNewRequestSheet(BuildContext context) {
                       );
                     }
                     if (snapshot.hasError) {
-                      debugPrint('[LibreChat] new_request_sheet fetchAgents error: ${snapshot.error}');
+                      AppLogger.e('NewRequestSheet', 'fetchAgents failed', snapshot.error, snapshot.stackTrace);
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 24),
                         child: Text(

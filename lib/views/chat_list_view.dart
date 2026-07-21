@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../repositories/auth_repository.dart';
 import '../routes/app_routes.dart';
+import '../services/app_logger.dart';
 import '../services/librechat_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/new_request_sheet.dart';
@@ -54,7 +55,8 @@ class _ChatListViewState extends State<ChatListView> {
         _conversations = convos;
         _loading = false;
       });
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.e('ChatListView', 'fetchConversations failed', e, st);
       if (!mounted) return;
       setState(() {
         _error = '$e';

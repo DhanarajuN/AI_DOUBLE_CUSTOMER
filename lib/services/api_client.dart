@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'app_logger.dart';
 
 /// Thrown when an API call returns a non-2xx response.
 class ApiException implements Exception {
@@ -27,19 +28,35 @@ class ApiClient {
     _accessToken = token;
   }
 
-  Future<dynamic> get(String path, {Map<String, String>? query}) async {
-    final response = await _client.get(_uri(path, query), headers: _headers());
-    return _decode(response);
+  Future<dynamic> get(String path, {Map<String, String>? query}) {
+    return _request('GET', path, () => _client.get(_uri(path, query), headers: _headers()));
   }
 
-  Future<dynamic> post(String path, {Object? body, Map<String, String>? query}) async {
-    final response = await _client.post(_uri(path, query), headers: _headers(), body: _encode(body));
-    return _decode(response);
+  Future<dynamic> post(String path, {Object? body, Map<String, String>? query}) {
+    return _request(
+      'POST',
+      path,
+      () => _client.post(_uri(path, query), headers: _headers(), body: _encode(body)),
+      body: body,
+    );
   }
 
-  Future<dynamic> put(String path, {Object? body}) async {
-    final response = await _client.put(_uri(path), headers: _headers(), body: _encode(body));
-    return _decode(response);
+  Future<dynamic> put(String path, {Object? body}) {
+    return _request('PUT', path, () => _client.put(_uri(path), headers: _headers(), body: _encode(body)), body: body);
+  }
+
+  Future<dynamic> _request(String method, String path, Future<http.Response> Function() send, {Object? body}) async {
+    final stopwatch = Stopwatch()..start();
+    AppLogger.i('ApiClient', '$method $path${body == null ? '' : ' body=${jsonEncode(redactJson(body))}'}');
+    try {
+      final response = await send();
+      final result = _decode(response);
+      AppLogger.i('ApiClient', '$method $path -> ${response.statusCode} in ${stopwatch.elapsedMilliseconds}ms');
+      return result;
+    } catch (e) {
+      AppLogger.e('ApiClient', '$method $path failed after ${stopwatch.elapsedMilliseconds}ms', e);
+      rethrow;
+    }
   }
 
   Uri _uri(String path, [Map<String, String>? query]) {

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import '../routes/app_routes.dart';
+import '../services/app_logger.dart';
 import '../services/librechat_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/message_bubble.dart';
@@ -72,7 +73,8 @@ class AgentChatView extends StatefulWidget {
       if (!context.mounted) return;
       Navigator.of(context).pop(); // close loading dialog
       Navigator.of(context).pushNamed(AppRoutes.agentThread, arguments: AgentThreadArgs(agent: detail));
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.e('AgentChatView', 'open($id) failed', e, st);
       if (!context.mounted) return;
       Navigator.of(context).pop(); // close loading dialog
       ScaffoldMessenger.of(context).showSnackBar(
@@ -115,7 +117,8 @@ class AgentChatView extends StatefulWidget {
         AppRoutes.agentThread,
         arguments: AgentThreadArgs(agent: agent, conversationId: conversationId, initialMessages: messages),
       );
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.e('AgentChatView', 'openExisting($conversationId) failed', e, st);
       if (!context.mounted) return;
       Navigator.of(context).pop(); // close loading dialog
       ScaffoldMessenger.of(context).showSnackBar(
@@ -174,8 +177,7 @@ class _AgentChatViewState extends State<AgentChatView> {
           final parts = entry.split('::');
           return _Starter(parts[0], parts.length > 1 ? parts[1] : '');
         })
-        // "__agenticon__::..." is metadata about the agent's own avatar, not
-        // a real starter to show as a chip.
+       
         .where((s) => !s.iconKey.startsWith('__') && s.label.isNotEmpty)
         .toList();
   }
@@ -309,7 +311,8 @@ class _AgentChatViewState extends State<AgentChatView> {
           _parentMessageId = responseMessage?['messageId'] as String? ?? _parentMessageId;
         }
       }
-    } catch (e) {
+    } catch (e, st) {
+      AppLogger.e('AgentChatView', 'streamChat failed', e, st);
       if (!mounted) return;
       setState(() {
         assistantMsg.isStreaming = false;

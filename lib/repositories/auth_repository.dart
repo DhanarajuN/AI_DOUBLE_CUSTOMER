@@ -4,6 +4,7 @@ import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import '../constants/server_urls.dart';
 import '../models/user.dart';
 import '../services/api_client.dart';
+import '../services/app_logger.dart';
 import '../services/session_storage.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
@@ -48,12 +49,7 @@ class AuthRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Fetches /api/v1/module-constants and stores ACTIVE_AGENTS (a
-  /// comma-separated agent-name list) for filtering the "New request"
-  /// sheet. `moduleConstants` in the response is an array of job-instance
-  /// records (the GoSure generic job-type shape) — the constants live in
-  /// the first entry's `data` map. Called automatically once authenticated
-  /// (see [restoreSession]/[login]) — no UI of its own, failures swallowed.
+ 
   Future<void> fetchModuleConstants() async {
     try {
       final json = await _apiClient.get(ServerUrls.moduleConstants)
@@ -69,9 +65,9 @@ class AuthRepository extends ChangeNotifier {
           .map((s) => s.trim())
           .where((s) => s.isNotEmpty)
           .toList();
-    } catch (_) {
-      // Leave _activeAgentNames as-is (null on first failure) — the sheet
-      // falls back to showing every agent rather than none.
+    } catch (e, st) {
+    
+      AppLogger.e('AuthRepository', 'fetchModuleConstants failed', e, st);
     }
   }
 
@@ -94,11 +90,14 @@ class AuthRepository extends ChangeNotifier {
         username: json['username'] as String,
         roleName: json['accRoleName'] as String,
       );
+      AppLogger.i('AuthRepository', 'login succeeded for $username');
       return true;
     } on ApiException catch (e) {
+      AppLogger.w('AuthRepository', 'login failed for $username: ${e.message}');
       _errorMessage = e.message;
       return false;
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e('AuthRepository', 'login failed for $username', e, st);
       _errorMessage =
           'Could not reach the server. Check your connection and try again.';
       return false;
@@ -128,12 +127,14 @@ class AuthRepository extends ChangeNotifier {
 
       final error = callbackUri.queryParameters['error'];
       if (error != null) {
+        AppLogger.w('AuthRepository', 'Google sign-in returned an error: $error');
         _errorMessage = callbackUri.queryParameters['error_description'] ??
             'Google sign-in failed.';
         return false;
       }
       final sessionId = callbackUri.queryParameters['sessionId'];
       if (sessionId == null) {
+        AppLogger.w('AuthRepository', 'Google sign-in callback had no sessionId');
         _errorMessage = 'Google sign-in did not return a session.';
         return false;
       }
@@ -151,14 +152,18 @@ class AuthRepository extends ChangeNotifier {
         username: json['username'] as String,
         roleName: json['accRoleName'] as String,
       );
+      AppLogger.i('AuthRepository', 'Google sign-in succeeded');
       return true;
-    } on PlatformException {
+    } on PlatformException catch (e) {
       // User closed the browser tab / cancelled the Google sign-in.
+      AppLogger.i('AuthRepository', 'Google sign-in cancelled: ${e.code}');
       return false;
     } on ApiException catch (e) {
+      AppLogger.w('AuthRepository', 'Google sign-in token exchange failed: ${e.message}');
       _errorMessage = e.message;
       return false;
-    } catch (_) {
+    } catch (e, st) {
+      AppLogger.e('AuthRepository', 'Google sign-in failed unexpectedly', e, st);
       _errorMessage = 'Could not complete Google sign-in. Please try again.';
       return false;
     } finally {
@@ -187,6 +192,7 @@ class AuthRepository extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    AppLogger.i('AuthRepository', 'logout');
     await _sessionStorage.clearSession();
     _apiClient.setAccessToken(null);
     _currentUser = null;
