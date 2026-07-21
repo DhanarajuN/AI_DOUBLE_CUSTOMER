@@ -21,7 +21,7 @@ class ChatListView extends StatefulWidget {
   State<ChatListView> createState() => _ChatListViewState();
 }
 
-class _ChatListViewState extends State<ChatListView> {
+class _ChatListViewState extends State<ChatListView> with RouteAware {
   final _searchCtrl = TextEditingController();
   final _searchFocus = FocusNode();
 
@@ -37,11 +37,21 @@ class _ChatListViewState extends State<ChatListView> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context) as PageRoute<dynamic>);
+  }
+
+  @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _searchCtrl.dispose();
     _searchFocus.dispose();
     super.dispose();
   }
+
+  @override
+  void didPopNext() => _load();
 
   Future<void> _load() async {
     setState(() {

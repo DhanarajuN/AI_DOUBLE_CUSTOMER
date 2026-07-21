@@ -5,9 +5,8 @@ import '../views/chat_list_view.dart';
 import '../views/login_view.dart';
 import '../views/splash_view.dart';
 
-/// Logs every route push/pop, named or not (agent_chat_view.dart's
-/// open()/openExisting() push a MaterialPageRoute directly, bypassing
-/// [AppRoutes.onGenerateRoute]) — attach to MaterialApp.navigatorObservers.
+final routeObserver = RouteObserver<PageRoute<dynamic>>();
+
 class AppNavigatorObserver extends NavigatorObserver {
   String _label(Route<dynamic>? route) => route?.settings.name ?? route?.runtimeType.toString() ?? 'unknown';
 
@@ -27,18 +26,12 @@ class AppNavigatorObserver extends NavigatorObserver {
   }
 }
 
-/// Central named-route table for the whole app. Every screen push goes
-/// through [onGenerateRoute] — via Navigator.pushNamed and friends — so
-/// route names and their required arguments live in one place instead of
-/// each call site constructing its own MaterialPageRoute.
 class AppRoutes {
   AppRoutes._();
 
   static const String splash = '/';
   static const String login = '/login';
   static const String chatList = '/chats';
-
-  /// Pass an [AgentThreadArgs] as `arguments`.
   static const String agentThread = '/agents/thread';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {

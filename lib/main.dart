@@ -113,7 +113,7 @@ class _AiDoubleAppState extends State<AiDoubleApp> with WidgetsBindingObserver {
         theme: buildAppTheme(),
         initialRoute: AppRoutes.splash,
         onGenerateRoute: AppRoutes.onGenerateRoute,
-        navigatorObservers: [AppNavigatorObserver()],
+        navigatorObservers: [AppNavigatorObserver(), routeObserver],
       ),
     );
   }
