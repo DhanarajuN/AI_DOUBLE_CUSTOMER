@@ -28,6 +28,12 @@ class SessionStorage {
     return prefs.getString(_accessTokenKey);
   }
 
+ 
+  Future<String?> readUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userIdKey);
+  }
+
   Future<AuthSession?> readSession() async {
     final prefs = await SharedPreferences.getInstance();
     final accessToken = prefs.getString(_accessTokenKey);

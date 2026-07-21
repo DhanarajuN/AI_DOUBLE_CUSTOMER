@@ -15,13 +15,18 @@ class LibreChatService {
   static const _browserUserAgent =
       'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36';
 
-  static Map<String, String> _headers() => {
-        'User-Agent': _browserUserAgent,
-        'X-Tenant-Id': ServerUrls.tenant,
-      };
+  static Future<Map<String, String>> _headers() async {
+    final userId = await SessionStorage().readUserId();
+    return {
+      'User-Agent': _browserUserAgent,
+      'X-Tenant-Id': ServerUrls.tenant,
+      if (userId != null) 'X-User-Id': userId,
+    };
+  }
 
   static Future<List<Map<String, dynamic>>> fetchAgents() async {
-    final response = await http.get(Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatAgents}'), headers: _headers());
+    final response =
+        await http.get(Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatAgents}'), headers: await _headers());
     AppLogger.i('LibreChat', 'fetchAgents -> ${response.statusCode}: ${redactedPreview(response.body)}');
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to load agents (${response.statusCode}): ${response.body}');
@@ -35,7 +40,7 @@ class LibreChatService {
 
   static Future<Map<String, dynamic>> fetchAgentById(String id) async {
     final response =
-        await http.get(Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatAgents}$id'), headers: _headers());
+        await http.get(Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatAgents}$id'), headers: await _headers());
     AppLogger.i('LibreChat', 'fetchAgentById($id) -> ${response.statusCode}: ${redactedPreview(response.body)}');
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to load agent (${response.statusCode}): ${response.body}');
@@ -45,7 +50,8 @@ class LibreChatService {
 
 
   static Future<List<Map<String, dynamic>>> fetchConversations() async {
-    final response = await http.get(Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatConvos}'), headers: _headers());
+    final response =
+        await http.get(Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatConvos}'), headers: await _headers());
     AppLogger.i('LibreChat', 'fetchConversations -> ${response.statusCode}: ${redactedPreview(response.body)}');
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to load conversations (${response.statusCode}): ${response.body}');
@@ -60,7 +66,7 @@ class LibreChatService {
   static Future<List<Map<String, dynamic>>> fetchMessages(String conversationId) async {
     final response = await http.get(
       Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatMessages}$conversationId'),
-      headers: _headers(),
+      headers: await _headers(),
     );
     AppLogger.i('LibreChat', 'fetchMessages($conversationId) -> ${response.statusCode}: ${redactedPreview(response.body)}');
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -86,7 +92,7 @@ class LibreChatService {
     final response = await http.post(
       Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatAgentChat}'),
       headers: {
-        ..._headers(),
+        ...await _headers(),
         'Content-Type': 'application/json',
         if (gosureToken != null) 'X-Gosure-Token': gosureToken,
       },
@@ -113,7 +119,7 @@ class LibreChatService {
       Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatAgentChatStream}$conversationId'),
     );
     request.headers.addAll({
-      ..._headers(),
+      ...await _headers(),
       'Accept': 'text/event-stream',
       if (gosureToken != null) 'X-Gosure-Token': gosureToken,
     });
