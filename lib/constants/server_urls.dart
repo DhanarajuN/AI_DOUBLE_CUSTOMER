@@ -1,4 +1,3 @@
-
 class ServerUrls {
   ServerUrls._();
 
@@ -10,7 +9,6 @@ class ServerUrls {
 
   static const String moduleConstants = '/api/v1/module-constants';
 
-
   static const String ssoCallbackScheme = 'aidoublecustomer';
 
   static const String ssoCallbackUrl = '$ssoCallbackScheme://auth-redirect';
@@ -19,10 +17,12 @@ class ServerUrls {
 
   static const String ssoSessionLogin = '/api/v1/users/sso/session-login';
 
- 
-  static const String librechatURL = 'https://librechat-backend-137691469700.asia-south1.run.app';
+  static const String librechatURL =
+      'https://librechat-backend-137691469700.asia-south1.run.app';
 
   static const String librechatAgents = '/api/agents/';
+
+  static const String librechatFilesImages = '/api/files/images';
 
   static const String librechatAgentChat = '/api/agents/chat';
 
