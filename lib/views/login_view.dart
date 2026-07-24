@@ -4,6 +4,7 @@ import '../repositories/auth_repository.dart';
 import '../routes/app_routes.dart';
 import '../theme/app_theme.dart';
 import '../viewmodels/login_view_model.dart';
+import 'register_view.dart';
 
 class LoginView extends StatelessWidget {
   const LoginView({super.key});
@@ -193,9 +194,9 @@ class _LoginBodyState extends State<_LoginBody> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2.2, color: Color(0xFF3C4043)),
                           )
-                        : Row(
+                        : const Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: const [
+                            children: [
                               _GoogleLogo(size: 18),
                               SizedBox(width: 12),
                               Text(
@@ -204,6 +205,30 @@ class _LoginBodyState extends State<_LoginBody> {
                               ),
                             ],
                           ),
+                  ),
+                  const SizedBox(height: 22),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Register — coming soon'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      ),
+                      // Navigator.of(context).push(RegisterView.route()),
+                      child: RichText(
+                        text: TextSpan(
+                          style: AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor),
+                          children: [
+                            const TextSpan(text: "Don't have an account? "),
+                            TextSpan(
+                              text: 'Register',
+                              style: AppFonts.body(size: 13.5, weight: FontWeight.w700, color: AppColors.appPrimaryColor),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),

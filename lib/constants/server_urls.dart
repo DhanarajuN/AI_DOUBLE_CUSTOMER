@@ -17,8 +17,14 @@ class ServerUrls {
 
   static const String ssoSessionLogin = '/api/v1/users/sso/session-login';
 
+  // Public (no-auth) job-instance API, used by RegisterView to submit the
+  // member/professional registration form. See RegistrationService for the
+  // jobTypeId this needs.
+  static const String createInstance = '/api/v1/public/create-instance';
+
   static const String librechatURL =
-      'https://librechat-backend-137691469700.asia-south1.run.app';
+  'https://librechat-backend-olj53mb3da-el.a.run.app';
+     // 'https://librechat-backend-137691469700.asia-south1.run.app';
 
   static const String librechatAgents = '/api/agents/';
 
