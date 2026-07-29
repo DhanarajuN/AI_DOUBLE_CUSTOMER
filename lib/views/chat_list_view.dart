@@ -7,13 +7,8 @@ import '../services/librechat_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/new_request_sheet.dart';
 import 'agent_chat_view.dart';
+import 'bookings_view.dart';
 
-/// Chat list — backed by real LibreChat conversations (LibreChatService.
-/// fetchConversations) rather than the mock ConvoRepository. That API only
-/// gives title/agent_id/updatedAt, so there's no unread badge, message
-/// preview, or archive here (those had no dynamic backing data); tapping
-/// a past conversation is a no-op for now until a message-history
-/// endpoint is wired up — new chats still go through showNewRequestSheet.
 class ChatListView extends StatefulWidget {
   const ChatListView({super.key});
 
@@ -295,9 +290,17 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
             color: AppColors.appSurfaceVariantColor,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             onSelected: (value) {
-              if (value == 'logout') _confirmLogout(context);
+              if (value == 'bookings') {
+                Navigator.of(context).push(BookingsView.route());
+              } else if (value == 'logout') {
+                _confirmLogout(context);
+              }
             },
             itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'bookings',
+                child: Text('Bookings', style: AppFonts.body(size: 13.5)),
+              ),
               PopupMenuItem(
                 value: 'logout',
                 child: Text('Log out', style: AppFonts.body(size: 13.5)),
