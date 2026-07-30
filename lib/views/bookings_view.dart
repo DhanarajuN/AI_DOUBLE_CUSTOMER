@@ -126,10 +126,13 @@ class BookingsView extends StatefulWidget {
   State<BookingsView> createState() => _BookingsViewState();
 }
 
+const _kFilters = ['All', 'Draft', 'Accepted', 'Completed', 'Rejected', 'Cancelled'];
+
 class _BookingsViewState extends State<BookingsView> {
   List<_Booking> _bookings = [];
   bool _loading = true;
   String? _error;
+  String _filter = 'All';
 
   @override
   void initState() {
@@ -162,6 +165,11 @@ class _BookingsViewState extends State<BookingsView> {
     }
   }
 
+  List<_Booking> get _visible {
+    if (_filter == 'All') return _bookings;
+    return _bookings.where((b) => b.status.toLowerCase() == _filter.toLowerCase()).toList();
+  }
+
   IconData _iconFor(String service) {
     final s = service.toLowerCase();
     if (s.contains('tutor') || s.contains('education') || s.contains('coaching')) return Icons.school_outlined;
@@ -177,10 +185,15 @@ class _BookingsViewState extends State<BookingsView> {
   Color _statusColor(String status) {
     switch (status.toLowerCase()) {
       case 'active':
+      case 'accepted':
+      case 'completed':
         return AppColors.appSuccessColor;
       case 'cancelled':
       case 'inactive':
+      case 'draft':
         return AppColors.appTextMutedColor;
+      case 'rejected':
+        return const Color(0xFFD64545);
       default:
         return AppColors.appSecondaryColor;
     }
@@ -194,8 +207,50 @@ class _BookingsViewState extends State<BookingsView> {
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
 
+  Widget _buildFilterBar() {
+    return Container(
+      color: AppColors.appSurfaceColor,
+      padding: const EdgeInsets.only(bottom: 10),
+      child: SizedBox(
+        height: 34,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          itemCount: _kFilters.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, i) {
+            final label = _kFilters[i];
+            final selected = _filter == label;
+            return InkWell(
+              borderRadius: BorderRadius.circular(100),
+              onTap: () => setState(() => _filter = label),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.appPrimaryColor : AppColors.appSurfaceVariantColor,
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(color: selected ? AppColors.appPrimaryColor : AppColors.appBorderColor),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  label,
+                  style: AppFonts.body(
+                    size: 12.5,
+                    weight: FontWeight.w600,
+                    color: selected ? AppColors.appOnPrimaryColor : AppColors.appTextSecondaryColor,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final visible = _visible;
     return Scaffold(
       backgroundColor: AppColors.appBackgroundColor,
       appBar: AppBar(
@@ -204,6 +259,10 @@ class _BookingsViewState extends State<BookingsView> {
         elevation: 0,
         iconTheme: IconThemeData(color: AppColors.appTextColor),
         title: Text('Bookings', style: AppFonts.display(size: 18)),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(44),
+          child: _buildFilterBar(),
+        ),
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -230,13 +289,13 @@ class _BookingsViewState extends State<BookingsView> {
                         ),
                       ],
                     )
-                  : _bookings.isEmpty
+                  : visible.isEmpty
                       ? ListView(
                           padding: const EdgeInsets.only(top: 120),
                           children: [
                             Center(
                               child: Text(
-                                'No bookings yet.',
+                                _bookings.isEmpty ? 'No bookings yet.' : 'No $_filter bookings.',
                                 style: AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor),
                               ),
                             ),
@@ -244,12 +303,12 @@ class _BookingsViewState extends State<BookingsView> {
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
-                          itemCount: _bookings.length,
+                          itemCount: visible.length,
                           itemBuilder: (context, i) => _BookingCard(
-                            booking: _bookings[i],
-                            icon: _iconFor(_bookings[i].service),
-                            statusColor: _statusColor(_bookings[i].status),
-                            formattedDate: _formatDate(_bookings[i].date),
+                            booking: visible[i],
+                            icon: _iconFor(visible[i].service),
+                            statusColor: _statusColor(visible[i].status),
+                            formattedDate: _formatDate(visible[i].date),
                           ),
                         ),
         ),
