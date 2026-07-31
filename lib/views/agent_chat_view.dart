@@ -204,10 +204,12 @@ class _AgentChatViewState extends State<AgentChatView> {
 
       final attachments = <_PendingAttachment>[];
       for (final f in files.cast<Map<String, dynamic>>()) {
-        final fileId = f['file_id'] as String?;
-        if (fileId == null) continue;
+        final metadata = f['metadata'] as Map<String, dynamic>?;
+        final gosureAttachmentId = metadata?['gosureAttachmentId'] as String?;
+        if (gosureAttachmentId == null) continue;
         try {
-          final bytes = await LibreChatService.downloadAttachment(fileId);
+          final bytes =
+              await LibreChatService.downloadAttachment(gosureAttachmentId);
           final isImage = (f['type'] as String? ?? '').startsWith('image/');
           int? width;
           int? height;
@@ -224,8 +226,8 @@ class _AgentChatViewState extends State<AgentChatView> {
             height: height,
           ));
         } catch (e, st) {
-          AppLogger.e(
-              'AgentChatView', 'downloadAttachment($fileId) failed', e, st);
+          AppLogger.e('AgentChatView',
+              'downloadAttachment($gosureAttachmentId) failed', e, st);
         }
       }
 
@@ -458,8 +460,11 @@ class _AgentChatViewState extends State<AgentChatView> {
         );
         uploadedFiles.add({
           ...file,
-          'gosureAttachmentId': gosureFile['id'],
-          'gosureDownloadKey': gosureFile['downloadKey'],
+          'metadata': {
+            ...(file['metadata'] as Map? ?? {}),
+            'gosureAttachmentId': gosureFile['id'],
+            'gosureDownloadKey': gosureFile['downloadKey'],
+          },
         });
       }
 

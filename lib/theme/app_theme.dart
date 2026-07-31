@@ -12,7 +12,7 @@ class AppColors {
   static Color get appSurfaceColor => _isDark ? const Color(0xFF111F1A) : const Color(0xFFFFFFFF);
   static Color get appSurfaceVariantColor => _isDark ? const Color(0xFF16241F) : const Color(0xFFEFF3F1);
 
-  static const appPrimaryColor = Color(0xFF12B886);
+  static const appPrimaryColor = Color(0xFF5B7BF5);
 
   static Color get appPrimaryDarkColor => Color.lerp(appPrimaryColor, Colors.black, 0.35)!;
   static Color get appBorderColor => appPrimaryColor.withOpacity(0.10);
