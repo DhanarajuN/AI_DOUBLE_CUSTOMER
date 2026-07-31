@@ -12,35 +12,29 @@ import '../services/librechat_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/message_bubble.dart';
 
-/// One entry from an agent's `conversation_starters` (e.g.
-/// `"pi-plus::Make a Claim"`) — icon key plus display label.
 class _Starter {
   final String iconKey;
   final String label;
   const _Starter(this.iconKey, this.label);
 }
 
-/// One message in the live thread with this agent. Mutable so a streaming
-/// assistant reply can grow `text` in place as deltas arrive.
 class _Msg {
   final bool isMe;
   String text;
   final String time;
   bool isStreaming;
+  bool isError;
   final List<_PendingAttachment> attachments;
   _Msg({
     required this.isMe,
     required this.text,
     required this.time,
     this.isStreaming = false,
+    this.isError = false,
     this.attachments = const [],
   });
 }
 
-/// A file picked but not yet uploaded/sent — kept in memory only long
-/// enough to preview it and, on send, upload it via
-/// LibreChatService.uploadAttachment. [width]/[height] are null for a PDF —
-/// only images have dimensions.
 class _PendingAttachment {
   final String filename;
   final Uint8List bytes;
@@ -56,9 +50,6 @@ class _PendingAttachment {
   });
 }
 
-/// Route arguments for [AppRoutes.agentThread] — bundles the agent detail
-/// with, optionally, an existing conversation to resume (its id and full
-/// message history from LibreChatService.fetchMessages).
 class AgentThreadArgs {
   final Map<String, dynamic> agent;
   final String? conversationId;
@@ -67,12 +58,6 @@ class AgentThreadArgs {
       {required this.agent, this.conversationId, this.initialMessages});
 }
 
-/// Chat page for a single LibreChat agent. Either a fresh conversation
-/// (opened after picking one from showNewRequestSheet(), see [open]) or an
-/// existing one resumed from the chat list with its full history (see
-/// [openExisting]). The app bar (name/avatar) and starter chips come from
-/// the real agent response, and messages are sent/streamed via
-/// LibreChatService.sendChatMessage/streamChat.
 class AgentChatView extends StatefulWidget {
   final Map<String, dynamic> agent;
   final String? initialConversationId;
@@ -83,10 +68,6 @@ class AgentChatView extends StatefulWidget {
       this.initialConversationId,
       this.initialMessages});
 
-  /// Takes the agent summary from showNewRequestSheet() (which only has
-  /// `id`/`name`/`description`/`avatar`), fetches the full detail by id —
-  /// needed for `conversation_starters` — and pushes the chat page. Shows a
-  /// loading dialog while fetching and a SnackBar if it fails.
   static Future<void> open(
       BuildContext context, Map<String, dynamic> agentSummary) async {
     final id = agentSummary['id'] as String?;
@@ -108,23 +89,19 @@ class AgentChatView extends StatefulWidget {
     try {
       final detail = await LibreChatService.fetchAgentById(id);
       if (!context.mounted) return;
-      Navigator.of(context).pop(); // close loading dialog
+      Navigator.of(context).pop();
       Navigator.of(context).pushNamed(AppRoutes.agentThread,
           arguments: AgentThreadArgs(agent: detail));
     } catch (e, st) {
       AppLogger.e('AgentChatView', 'open($id) failed', e, st);
       if (!context.mounted) return;
-      Navigator.of(context).pop(); // close loading dialog
+      Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not open agent: $e')),
       );
     }
   }
 
-  /// Reopens a past conversation from the chat list — fetches the agent
-  /// detail (by `agentId`) and the full message history (by
-  /// `conversationId`) in parallel, then pushes the chat page pre-loaded
-  /// with both, so sending a message continues that same conversation.
   static Future<void> openExisting(
     BuildContext context, {
     required String conversationId,
@@ -151,7 +128,7 @@ class AgentChatView extends StatefulWidget {
       final agent = results[0] as Map<String, dynamic>;
       final messages = results[1] as List<Map<String, dynamic>>;
       if (!context.mounted) return;
-      Navigator.of(context).pop(); // close loading dialog
+      Navigator.of(context).pop();
       Navigator.of(context).pushNamed(
         AppRoutes.agentThread,
         arguments: AgentThreadArgs(
@@ -163,7 +140,7 @@ class AgentChatView extends StatefulWidget {
       AppLogger.e(
           'AgentChatView', 'openExisting($conversationId) failed', e, st);
       if (!context.mounted) return;
-      Navigator.of(context).pop(); // close loading dialog
+      Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not open chat: $e')),
       );
@@ -420,6 +397,10 @@ class _AgentChatViewState extends State<AgentChatView> {
     try {
       final uploadedFiles = <Map<String, dynamic>>[];
       for (final attachment in attachments) {
+        final gosureFile = await LibreChatService.uploadToGosureAttachments(
+          bytes: attachment.bytes,
+          filename: attachment.filename,
+        );
         final file = await LibreChatService.uploadAttachment(
           agentId: agentId,
           bytes: attachment.bytes,
@@ -428,7 +409,11 @@ class _AgentChatViewState extends State<AgentChatView> {
           width: attachment.isImage ? attachment.width : null,
           height: attachment.isImage ? attachment.height : null,
         );
-        uploadedFiles.add(file);
+        uploadedFiles.add({
+          ...file,
+          'gosureAttachmentId': gosureFile['id'],
+          'gosureDownloadKey': gosureFile['downloadKey'],
+        });
       }
 
       final ack = await LibreChatService.sendChatMessage(
@@ -463,13 +448,23 @@ class _AgentChatViewState extends State<AgentChatView> {
           final responseMessage =
               event['responseMessage'] as Map<String, dynamic>?;
           final contentList = responseMessage?['content'] as List?;
+          final errorEntry = contentList?.firstWhere(
+            (c) => c is Map && c['type'] == 'error',
+            orElse: () => null,
+          );
           final fullText = contentList
                   ?.where((c) => c is Map && c['type'] == 'text')
                   .map((c) => c['text'] as String)
                   .join('\n\n') ??
               assistantMsg.text;
           setState(() {
-            assistantMsg.text = fullText.isEmpty ? assistantMsg.text : fullText;
+            if (errorEntry != null) {
+              assistantMsg.text =
+                  errorEntry['error'] as String? ?? 'The agent returned an error.';
+              assistantMsg.isError = true;
+            } else {
+              assistantMsg.text = fullText.isEmpty ? assistantMsg.text : fullText;
+            }
             assistantMsg.isStreaming = false;
           });
           _parentMessageId =
@@ -483,6 +478,7 @@ class _AgentChatViewState extends State<AgentChatView> {
         assistantMsg.isStreaming = false;
         if (assistantMsg.text.isEmpty) {
           assistantMsg.text = 'Something went wrong: $e';
+          assistantMsg.isError = true;
         }
         if (!_messages.contains(assistantMsg)) _messages.add(assistantMsg);
       });
@@ -492,9 +488,6 @@ class _AgentChatViewState extends State<AgentChatView> {
     }
   }
 
-  // Agent text sometimes comes back as plain text and sometimes as
-  // markdown (headings, bold, lists, ...) — render through MarkdownBody
-  // either way; it degrades to plain text when there's no markdown syntax.
   Widget _markdownText(String text) {
     return MarkdownBody(
       data: text,
@@ -533,15 +526,20 @@ class _AgentChatViewState extends State<AgentChatView> {
         margin: const EdgeInsets.symmetric(vertical: 3),
         padding: const EdgeInsets.fromLTRB(11, 8, 11, 6),
         decoration: BoxDecoration(
-          color: m.isMe
-              ? AppColors.appChatBubbleMineColor
-              : AppColors.appChatBubbleOtherColor,
+          color: m.isError
+              ? const Color(0xFFD64545).withOpacity(0.12)
+              : m.isMe
+                  ? AppColors.appChatBubbleMineColor
+                  : AppColors.appChatBubbleOtherColor,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(11),
             topRight: const Radius.circular(11),
             bottomLeft: Radius.circular(m.isMe ? 11 : 3),
             bottomRight: Radius.circular(m.isMe ? 3 : 11),
           ),
+          border: m.isError
+              ? Border.all(color: const Color(0xFFD64545).withOpacity(0.4))
+              : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -586,12 +584,26 @@ class _AgentChatViewState extends State<AgentChatView> {
               ),
               const SizedBox(height: 6),
             ],
-            // The user's own messages are shown as-is, never
-            // markdown-rendered; agent replies go through _markdownText.
             if (m.text.isNotEmpty)
-              m.isMe
-                  ? Text(m.text, style: AppFonts.body(size: 14))
-                  : _markdownText(m.text),
+              m.isError
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 16, color: Color(0xFFD64545)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            m.text,
+                            style: AppFonts.body(size: 14)
+                                .copyWith(color: const Color(0xFFD64545)),
+                          ),
+                        ),
+                      ],
+                    )
+                  : m.isMe
+                      ? Text(m.text, style: AppFonts.body(size: 14))
+                      : _markdownText(m.text),
             const SizedBox(height: 2),
             Text(
               m.time,
@@ -625,7 +637,6 @@ class _AgentChatViewState extends State<AgentChatView> {
       body: SafeArea(
         child: Column(
           children: [
-            // ---- app bar: name + avatar from the agent response ----
             Container(
               padding: const EdgeInsets.fromLTRB(6, 14, 8, 12),
               decoration: BoxDecoration(
@@ -705,17 +716,12 @@ class _AgentChatViewState extends State<AgentChatView> {
               ),
             ),
 
-            // ---- thread: TODAY mark + greeting bubble, then the live
-            // message history sent/streamed via LibreChatService ----
             Expanded(
               child: Container(
                 color: AppColors.appChatBackgroundColor,
                 child: ListView.builder(
                   controller: _scrollCtrl,
                   padding: const EdgeInsets.fromLTRB(12, 14, 12, 4),
-                  // Resumed conversations already have their own real
-                  // greeting exchange in history — only synthesize a
-                  // TODAY mark + greeting bubble for a brand-new chat.
                   itemCount: (_hasHistory ? 0 : 2) + _messages.length,
                   itemBuilder: (context, i) {
                     if (!_hasHistory) {
@@ -762,8 +768,6 @@ class _AgentChatViewState extends State<AgentChatView> {
               ),
             ),
 
-            // ---- conversation starters (bottom blocks) — hidden once the
-            // user has sent a first message ----
             if (starters.isNotEmpty && _messages.isEmpty)
               Container(
                 width: double.infinity,
@@ -805,7 +809,6 @@ class _AgentChatViewState extends State<AgentChatView> {
                 ),
               ),
 
-            // ---- composer ----
             Container(
               padding: const EdgeInsets.all(8),
               color: AppColors.appSurfaceColor,

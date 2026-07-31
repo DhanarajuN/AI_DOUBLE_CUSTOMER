@@ -5,9 +5,6 @@ import '../constants/server_urls.dart';
 import 'app_logger.dart';
 import 'session_storage.dart';
 
-/// Infers the multipart Content-Type for an attachment from its filename —
-/// http.MultipartFile.fromBytes defaults to application/octet-stream
-/// without this, which the backend's file processing rejects.
 MediaType _mediaTypeFor(String filename) {
   final ext = filename.split('.').last.toLowerCase();
   switch (ext) {
@@ -29,10 +26,6 @@ MediaType _mediaTypeFor(String filename) {
   }
 }
 
-/// Talks to the separate LibreChat backend. No login/token of its own
-/// anymore — the backend authenticates by tenant alone, via the
-/// `X-Tenant-Id` header (see [_headers]), so every call just needs that
-/// plus the spoofed User-Agent.
 class LibreChatService {
   LibreChatService._();
 
@@ -41,10 +34,12 @@ class LibreChatService {
 
   static Future<Map<String, String>> _headers() async {
     final userId = await SessionStorage().readUserId();
+    final gosureToken = await _gosureToken();
     return {
       'User-Agent': _browserUserAgent,
       'X-Tenant-Id': ServerUrls.tenant,
       if (userId != null) 'X-User-Id': userId,
+      if (gosureToken != null) 'X-Gosure-Token': gosureToken,
     };
   }
 
@@ -113,7 +108,32 @@ class LibreChatService {
 
   static Future<String?> _gosureToken() => SessionStorage().readAccessToken();
 
- 
+  static Future<Map<String, dynamic>> uploadToGosureAttachments({
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    final token = await _gosureToken();
+    final headers = {
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+    AppLogger.i('LibreChat', 'uploadToGosureAttachments($filename) headers: $headers');
+
+    final request = http.MultipartRequest(
+        'POST', Uri.parse('${ServerUrls.baseUrl}${ServerUrls.attachmentsUpload}'))
+      ..headers.addAll(headers)
+      ..files.add(http.MultipartFile.fromBytes('attachment', bytes,
+          filename: filename, contentType: _mediaTypeFor(filename)));
+
+    final response = await http.Response.fromStream(await request.send());
+    AppLogger.i('LibreChat',
+        'uploadToGosureAttachments($filename) -> ${response.statusCode}: ${redactedPreview(response.body)}');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+          'Failed to upload attachment (${response.statusCode}): ${response.body}');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   static Future<Map<String, dynamic>> uploadAttachment({
     required String agentId,
     required List<int> bytes,
@@ -168,13 +188,11 @@ class LibreChatService {
   }) async {
     AppLogger.i('LibreChat',
         'sendChatMessage request: agentId=$agentId conversationId=$conversationId textLen=${text.length} files=${files?.length ?? 0}');
-    final gosureToken = await _gosureToken();
     final response = await http.post(
       Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatAgentChat}'),
       headers: {
         ...await _headers(),
         'Content-Type': 'application/json',
-        if (gosureToken != null) 'X-Gosure-Token': gosureToken,
       },
       body: jsonEncode({
         'endpoint': 'agents',
@@ -197,7 +215,7 @@ class LibreChatService {
   }
 
   static Future<http.StreamedResponse> _openStream(
-      http.Client client, String conversationId, String? gosureToken) async {
+      http.Client client, String conversationId) async {
     final request = http.Request(
       'GET',
       Uri.parse(
@@ -206,16 +224,14 @@ class LibreChatService {
     request.headers.addAll({
       ...await _headers(),
       'Accept': 'text/event-stream',
-      if (gosureToken != null) 'X-Gosure-Token': gosureToken,
     });
     return client.send(request);
   }
 
   static Stream<Map<String, dynamic>> streamChat(String conversationId) async* {
     AppLogger.i('LibreChat', 'streamChat($conversationId) opening');
-    final gosureToken = await _gosureToken();
     final client = http.Client();
-    final response = await _openStream(client, conversationId, gosureToken);
+    final response = await _openStream(client, conversationId);
     AppLogger.i('LibreChat',
         'streamChat($conversationId) -> ${response.statusCode}');
 

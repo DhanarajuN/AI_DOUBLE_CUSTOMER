@@ -21,6 +21,8 @@ class ServerUrls {
 
   static const String bookingsInstances = '/api/v1/job-types/name/Bookings/instances';
 
+  static const String attachmentsUpload = '/api/v1/attachments/upload';
+
   static const String librechatURL = 'https://librechat-backend-olj53mb3da-el.a.run.app';
 
   static const String librechatAgents = '/api/agents/';
