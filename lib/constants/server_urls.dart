@@ -23,6 +23,8 @@ class ServerUrls {
 
   static const String attachmentsUpload = '/api/v1/attachments/upload';
 
+  static const String attachmentsDownload = '/api/v1/attachments/download';
+
   static const String librechatURL = 'https://librechat-backend-olj53mb3da-el.a.run.app';
 
   static const String librechatAgents = '/api/agents/';

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../constants/server_urls.dart';
@@ -132,6 +133,22 @@ class LibreChatService {
           'Failed to upload attachment (${response.statusCode}): ${response.body}');
     }
     return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  static Future<Uint8List> downloadAttachment(String fileId) async {
+    final token = await _gosureToken();
+    final response = await http.get(
+      Uri.parse('${ServerUrls.baseUrl}${ServerUrls.attachmentsDownload}?id=$fileId'),
+      headers: {
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+    );
+    AppLogger.i('LibreChat',
+        'downloadAttachment($fileId) -> ${response.statusCode}: ${response.bodyBytes.length} bytes');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to download attachment (${response.statusCode})');
+    }
+    return response.bodyBytes;
   }
 
   static Future<Map<String, dynamic>> uploadAttachment({

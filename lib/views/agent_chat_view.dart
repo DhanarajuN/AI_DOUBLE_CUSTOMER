@@ -192,6 +192,53 @@ class _AgentChatViewState extends State<AgentChatView> {
       }
       _parentMessageId =
           raw.last['messageId'] as String? ?? _rootParentMessageId;
+      _hydrateHistoryAttachments(raw);
+    }
+  }
+
+  Future<void> _hydrateHistoryAttachments(
+      List<Map<String, dynamic>> raw) async {
+    for (var i = 0; i < raw.length; i++) {
+      final files = raw[i]['files'] as List?;
+      if (files == null || files.isEmpty) continue;
+
+      final attachments = <_PendingAttachment>[];
+      for (final f in files.cast<Map<String, dynamic>>()) {
+        final fileId = f['file_id'] as String?;
+        if (fileId == null) continue;
+        try {
+          final bytes = await LibreChatService.downloadAttachment(fileId);
+          final isImage = (f['type'] as String? ?? '').startsWith('image/');
+          int? width;
+          int? height;
+          if (isImage) {
+            final decoded = await _decodeImage(bytes);
+            width = decoded.width;
+            height = decoded.height;
+          }
+          attachments.add(_PendingAttachment(
+            filename: f['filename'] as String? ?? 'attachment',
+            bytes: bytes,
+            isImage: isImage,
+            width: width,
+            height: height,
+          ));
+        } catch (e, st) {
+          AppLogger.e(
+              'AgentChatView', 'downloadAttachment($fileId) failed', e, st);
+        }
+      }
+
+      if (attachments.isEmpty || !mounted) continue;
+      setState(() {
+        final old = _messages[i];
+        _messages[i] = _Msg(
+          isMe: old.isMe,
+          text: old.text,
+          time: old.time,
+          attachments: attachments,
+        );
+      });
     }
   }
 
