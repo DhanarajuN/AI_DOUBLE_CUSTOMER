@@ -6,6 +6,19 @@ import '../services/app_logger.dart';
 import '../constants/server_urls.dart';
 import '../theme/app_theme.dart';
 
+String? _formatTimeOfDay(dynamic raw) {
+  final s = raw?.toString().trim();
+  if (s == null || s.isEmpty) return null;
+  final dt = DateTime.tryParse(s);
+  if (dt == null) return s;
+  final local = dt.toLocal();
+  final hour24 = local.hour;
+  final period = hour24 >= 12 ? 'PM' : 'AM';
+  final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$hour12:$minute $period';
+}
+
 Future<void> _dial(BuildContext context, String phone) async {
   final uri = Uri(scheme: 'tel', path: phone);
   try {
@@ -85,7 +98,7 @@ class _Booking {
       service: nonEmpty(data['Service']) ?? 'Booking',
       status: json['Current_Job_Status']?.toString() ?? 'Unknown',
       date: DateTime.tryParse(data['Date']?.toString() ?? ''),
-      time: nonEmpty(data['Time']),
+      time: _formatTimeOfDay(data['Time']),
       brokerName: nonEmpty(data['Broker Name']) ?? '—',
       brokerCode: nonEmpty(data['Broker Code']) ?? '—',
       brokerPhone: nonEmpty(data['Phone Number']),
