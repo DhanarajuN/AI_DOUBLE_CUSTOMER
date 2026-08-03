@@ -8,10 +8,6 @@ class AuthSession {
   const AuthSession({required this.accessToken, required this.token, required this.user});
 }
 
-/// Persists the logged-in session across app restarts, so
-/// [AuthRepository.restoreSession] can skip the login screen when one
-/// exists. Backed by SharedPreferences — fine for tokens + a small user
-/// blob; swap for flutter_secure_storage if the tokens need encryption.
 class SessionStorage {
   static const _accessTokenKey = 'auth_access_token';
   static const _tokenKey = 'auth_token';
@@ -20,9 +16,6 @@ class SessionStorage {
   static const _usernameKey = 'auth_username';
   static const _roleNameKey = 'auth_role_name';
 
-  /// The app's own accessToken (separate from LibreChat's token) — sent as
-  /// `X-Gosure-Token` on LibreChat chat requests so its gateway can
-  /// correlate them back to the GoSure user. See LibreChatService.
   Future<String?> readAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_accessTokenKey);
@@ -32,6 +25,11 @@ class SessionStorage {
   Future<String?> readUserId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_userIdKey);
+  }
+
+  Future<String?> readRoleName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_roleNameKey);
   }
 
   Future<AuthSession?> readSession() async {

@@ -371,6 +371,8 @@ class _AgentChatViewState extends State<AgentChatView> {
         totalBytes += file.bytes!.length;
       }
 
+      AppLogger.i('AgentChatView',
+          'pickAttachments picked=${result.files.length} accepted=${_pendingAttachments.length} skippedForCount=$skippedForCount skippedForSize=$skippedForSize');
       if (skippedForCount) {
         _warn('Only up to $_maxAttachments attachments allowed');
       }
@@ -443,9 +445,14 @@ class _AgentChatViewState extends State<AgentChatView> {
     final assistantMsg =
         _Msg(isMe: false, text: '', time: _timeNow(), isStreaming: true);
 
+    AppLogger.i('AgentChatView',
+        'send agentId=$agentId conversationId=$_conversationId textLen=${text.length} attachments=${attachments.length}');
+
     try {
       final uploadedFiles = <Map<String, dynamic>>[];
       for (final attachment in attachments) {
+        AppLogger.i('AgentChatView',
+            'uploading attachment ${attachment.filename} (${attachment.bytes.length} bytes)');
         final gosureFile = await LibreChatService.uploadToGosureAttachments(
           bytes: attachment.bytes,
           filename: attachment.filename,
@@ -458,6 +465,8 @@ class _AgentChatViewState extends State<AgentChatView> {
           width: attachment.isImage ? attachment.width : null,
           height: attachment.isImage ? attachment.height : null,
         );
+        AppLogger.i('AgentChatView',
+            'uploaded ${attachment.filename} -> gosureAttachmentId=${gosureFile['id']} librechatFileId=${file['file_id']}');
         uploadedFiles.add({
           ...file,
           'metadata': {
@@ -480,11 +489,14 @@ class _AgentChatViewState extends State<AgentChatView> {
           ack['streamId'] as String? ?? ack['conversationId'] as String?;
       if (streamId == null) throw Exception('No streamId in response');
       _conversationId = ack['conversationId'] as String? ?? streamId;
+      AppLogger.i('AgentChatView',
+          'sendChatMessage ack streamId=$streamId conversationId=$_conversationId');
 
       if (!mounted) return;
       setState(() => _messages.add(assistantMsg));
       _scrollToBottom();
 
+      var deltaCount = 0;
       await for (final event in LibreChatService.streamChat(streamId)) {
         if (!mounted) return;
         if (event['event'] == 'on_message_delta') {
@@ -493,6 +505,7 @@ class _AgentChatViewState extends State<AgentChatView> {
               ? content[0]['text'] as String? ?? ''
               : '';
           if (chunk.isNotEmpty) {
+            deltaCount++;
             setState(() => assistantMsg.text += chunk);
             _scrollToBottom();
           }
@@ -509,6 +522,8 @@ class _AgentChatViewState extends State<AgentChatView> {
                   .map((c) => c['text'] as String)
                   .join('\n\n') ??
               assistantMsg.text;
+          AppLogger.i('AgentChatView',
+              'stream final: deltas=$deltaCount hasError=${errorEntry != null} textLen=${fullText.length} messageId=${responseMessage?['messageId']}');
           setState(() {
             if (errorEntry != null) {
               assistantMsg.text =
@@ -535,6 +550,8 @@ class _AgentChatViewState extends State<AgentChatView> {
         if (!_messages.contains(assistantMsg)) _messages.add(assistantMsg);
       });
     } finally {
+      AppLogger.i(
+          'AgentChatView', 'send complete conversationId=$_conversationId');
       if (mounted) setState(() => _sending = false);
       _scrollToBottom();
     }

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_client.dart';
 import '../services/app_logger.dart';
+import '../services/session_storage.dart';
 import '../constants/server_urls.dart';
 import '../theme/app_theme.dart';
 
@@ -17,6 +18,12 @@ String? _formatTimeOfDay(dynamic raw) {
   final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
   final minute = local.minute.toString().padLeft(2, '0');
   return '$hour12:$minute $period';
+}
+
+bool _isPositive(String? v) {
+  if (v == null) return false;
+  final n = num.tryParse(v);
+  return n != null && n > 0;
 }
 
 Future<void> _dial(BuildContext context, String phone) async {
@@ -212,12 +219,122 @@ class _BookingsViewState extends State<BookingsView> {
     }
   }
 
+  Future<Map<String, dynamic>?> _findNextStatus(
+      String instanceId, String targetSecondaryStatus) async {
+    try {
+      final json = await context.read<ApiClient>().get(
+        '${ServerUrls.jobInstances}$instanceId',
+        query: {'limitSubJobs': 'true', 'includeJobWorkflowType': 'true'},
+      ) as Map<String, dynamic>;
+      final jobs = json['jobs'] as List?;
+      if (jobs == null || jobs.isEmpty) return null;
+      final nextStatuses = (jobs[0] as Map<String, dynamic>)['Next_Job_Statuses'] as List?;
+      if (nextStatuses == null) return null;
+
+      for (final entry in nextStatuses.cast<Map<String, dynamic>>()) {
+        if ((entry['secondaryStatus'] as String? ?? '').toLowerCase() !=
+            targetSecondaryStatus.toLowerCase()) {
+          continue;
+        }
+        final roles = entry['roles'] as List?;
+        final role = (roles != null && roles.isNotEmpty) ? roles[0] as Map<String, dynamic> : null;
+        return {
+          'sequenceNo': entry['sequenceNo'],
+          'secondaryStatus': entry['secondaryStatus'],
+          'roleId': role?['id'],
+          'roleName': role?['name'],
+        };
+      }
+      return null;
+    } catch (e, st) {
+      AppLogger.e('BookingsView', 'findNextStatus($instanceId) failed', e, st);
+      return null;
+    }
+  }
+
+  Future<void> _cancelBooking(_Booking booking) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.appSurfaceColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Cancel booking?', style: AppFonts.display(size: 17)),
+        content: Text(
+          'This will cancel "${booking.service}". This can\'t be undone.',
+          style: AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Keep it', style: AppFonts.body(size: 14, color: AppColors.appTextSecondaryColor)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Cancel booking',
+                style: AppFonts.body(size: 14, weight: FontWeight.w600, color: const Color(0xFFD64545))),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final next = await _findNextStatus(booking.id, 'Cancelled');
+    if (next == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('No Cancelled status available for this booking'),
+            behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+    AppLogger.i('BookingsView',
+        'cancel target for ${booking.id}: sequenceNo=${next['sequenceNo']} secondaryStatus=${next['secondaryStatus']} roleId=${next['roleId']} roleName=${next['roleName']}');
+
+    final myRoleName = await SessionStorage().readRoleName();
+    final requiredRoleName = next['roleName'] as String?;
+    if (requiredRoleName != null &&
+        (myRoleName == null || myRoleName.toLowerCase() != requiredRoleName.toLowerCase())) {
+      AppLogger.w('BookingsView',
+          'cancel blocked: myRole=$myRoleName requiredRole=$requiredRoleName');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text("You don't have permission to cancel this booking"),
+            behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    try {
+      await context.read<ApiClient>().post(
+        ServerUrls.updateWorkflowStatus,
+        body: {
+          'jobInstanceId': booking.id,
+          'secondaryStatus': next['secondaryStatus'],
+        },
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Booking cancelled'), behavior: SnackBarBehavior.floating),
+      );
+      _load();
+    } catch (e, st) {
+      AppLogger.e('BookingsView', 'updateWorkflowStatus(${booking.id}) failed', e, st);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not cancel booking: $e'), behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
   String _formatDate(DateTime? dt) {
     if (dt == null) return 'Date not set';
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', //
-    ];
-    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+    final local = dt.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    return '$day/$month/${local.year}';
   }
 
   Widget _buildFilterBar() {
@@ -322,6 +439,9 @@ class _BookingsViewState extends State<BookingsView> {
                             icon: _iconFor(visible[i].service),
                             statusColor: _statusColor(visible[i].status),
                             formattedDate: _formatDate(visible[i].date),
+                            onCancel: visible[i].status.toLowerCase() == 'draft'
+                                ? () => _cancelBooking(visible[i])
+                                : null,
                           ),
                         ),
         ),
@@ -335,20 +455,22 @@ class _BookingCard extends StatelessWidget {
   final IconData icon;
   final Color statusColor;
   final String formattedDate;
+  final VoidCallback? onCancel;
 
   const _BookingCard({
     required this.booking,
     required this.icon,
     required this.statusColor,
     required this.formattedDate,
+    this.onCancel,
   });
 
   @override
   Widget build(BuildContext context) {
     final extras = <MapEntry<String, String>>[
-      if (booking.amount != null) MapEntry('Amount', '₹${booking.amount}'),
-      if (booking.amountAfterDiscount != null) MapEntry('After discount', '₹${booking.amountAfterDiscount}'),
-      if (booking.numberOfGuests != null) MapEntry('Guests', booking.numberOfGuests!),
+      if (_isPositive(booking.amount)) MapEntry('Amount', '₹${booking.amount}'),
+      if (_isPositive(booking.amountAfterDiscount)) MapEntry('After discount', '₹${booking.amountAfterDiscount}'),
+      if (_isPositive(booking.numberOfGuests)) MapEntry('Guests', booking.numberOfGuests!),
       if (booking.time != null) MapEntry('Time', booking.time!),
     ];
 
@@ -459,6 +581,22 @@ class _BookingCard extends StatelessWidget {
                 child: Text(
                   booking.specialRequest!,
                   style: AppFonts.body(size: 12, color: AppColors.appTextSecondaryColor).copyWith(fontStyle: FontStyle.italic),
+                ),
+              ),
+            ],
+            if (onCancel != null) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: onCancel,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFD64545),
+                    side: const BorderSide(color: Color(0xFFD64545)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: Text('Cancel booking', style: AppFonts.body(size: 13, weight: FontWeight.w600)),
                 ),
               ),
             ],

@@ -21,6 +21,10 @@ class ServerUrls {
 
   static const String bookingsInstances = '/api/v1/job-types/name/Bookings/instances';
 
+  static const String jobInstances = '/api/v1/job-instances/';
+
+  static const String updateWorkflowStatus = '/api/v1/job-instances/update-workflow-status';
+
   static const String attachmentsUpload = '/api/v1/attachments/upload';
 
   static const String attachmentsDownload = '/api/v1/attachments/download';

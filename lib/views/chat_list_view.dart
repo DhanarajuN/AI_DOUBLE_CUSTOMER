@@ -76,6 +76,13 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
     return _conversations.where((c) => ((c['title'] as String?) ?? '').toLowerCase().contains(q)).toList();
   }
 
+  String _initials(String title) {
+    final words = title.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.isEmpty) return '?';
+    if (words.length == 1) return words[0][0].toUpperCase();
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+
   String _relativeTime(String? iso) {
     final dt = iso == null ? null : DateTime.tryParse(iso);
     if (dt == null) return '';
@@ -197,7 +204,11 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
               width: 50,
               height: 50,
               decoration: BoxDecoration(gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
-              child: const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+              alignment: Alignment.center,
+              child: Text(
+                _initials(title),
+                style: AppFonts.display(size: 16, weight: FontWeight.w600, color: Colors.white),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
