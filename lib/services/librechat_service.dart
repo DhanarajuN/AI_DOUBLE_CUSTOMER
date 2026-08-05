@@ -231,6 +231,34 @@ class LibreChatService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  static Future<List<String>> suggestReplies({
+    required String conversationId,
+    required String lastUserMessage,
+    String? agentDescription,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatSuggestReplies}'),
+      headers: {
+        ...await _headers(),
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'conversationId': conversationId,
+        'lastUserMessage': lastUserMessage,
+        'agentDescription': agentDescription,
+      }),
+    );
+    AppLogger.i('LibreChat',
+        'suggestReplies -> ${response.statusCode}: ${redactedPreview(response.body)}');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+          'Failed to fetch suggested replies (${response.statusCode}): ${response.body}');
+    }
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final replies = decoded['replies'] as List?;
+    return (replies ?? const []).map((e) => e.toString()).toList();
+  }
+
   static Future<http.StreamedResponse> _openStream(
       http.Client client, String conversationId) async {
     final request = http.Request(

@@ -3,16 +3,6 @@ import 'package:http/http.dart' as http;
 import '../constants/server_urls.dart';
 import 'app_logger.dart';
 
-/// Submits the member/professional registration form to GoSure's generic
-/// job-instance API (`POST /api/v1/public/create-instance`) — a public,
-/// no-auth endpoint keyed by [_jobTypeId] with a freeform `data` map whose
-/// keys are the job type's configured field names.
-///
-/// TODO(backend-confirm): [_jobTypeId] is a placeholder — replace with the
-/// real id for the registration job type once confirmed; every submit will
-/// fail (likely 400/404) until then. The `data` keys below (`Name`,
-/// `Email`, ...) are also assumed to match the form's visible labels
-/// exactly — confirm against the actual job type schema.
 class RegistrationService {
   RegistrationService._();
 

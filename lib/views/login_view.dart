@@ -209,13 +209,14 @@ class _LoginBodyState extends State<_LoginBody> {
                   const SizedBox(height: 22),
                   Center(
                     child: TextButton(
-                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Register — coming soon'),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      ),
-                      // Navigator.of(context).push(RegisterView.route()),
+                      onPressed: () => 
+                      // ScaffoldMessenger.of(context).showSnackBar(
+                      //   const SnackBar(
+                      //     content: Text('Register — coming soon'),
+                      //     behavior: SnackBarBehavior.floating,
+                      //   ),
+                      // ),
+                       Navigator.of(context).push(RegisterView.route()),
                       child: RichText(
                         text: TextSpan(
                           style: AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor),

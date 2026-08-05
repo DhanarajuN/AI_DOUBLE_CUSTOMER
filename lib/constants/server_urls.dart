@@ -42,4 +42,6 @@ class ServerUrls {
   static const String librechatConvos = '/api/convos';
 
   static const String librechatMessages = '/api/messages/';
+
+  static const String librechatSuggestReplies = '/api/agents/suggest-replies';
 }

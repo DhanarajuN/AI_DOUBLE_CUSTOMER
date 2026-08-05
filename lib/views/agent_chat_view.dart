@@ -167,6 +167,7 @@ class _AgentChatViewState extends State<AgentChatView> {
   bool _hasHistory = false;
   final _pendingAttachments = <_PendingAttachment>[];
   bool _pickingAttachments = false;
+  List<String> _suggestedReplies = [];
 
   @override
   void initState() {
@@ -433,6 +434,7 @@ class _AgentChatViewState extends State<AgentChatView> {
     setState(() {
       _sending = true;
       _pendingAttachments.clear();
+      _suggestedReplies = [];
       _messages.add(_Msg(
         isMe: true,
         text: text,
@@ -537,6 +539,19 @@ class _AgentChatViewState extends State<AgentChatView> {
           _parentMessageId =
               responseMessage?['messageId'] as String? ?? _parentMessageId;
         }
+      }
+
+      try {
+        final suggestions = await LibreChatService.suggestReplies(
+          conversationId: _conversationId!,
+          lastUserMessage: text,
+          agentDescription: widget.agent['description'] as String?,
+        );
+        AppLogger.i('AgentChatView',
+            'suggestReplies -> ${suggestions.length} suggestions');
+        if (mounted) setState(() => _suggestedReplies = suggestions);
+      } catch (e, st) {
+        AppLogger.e('AgentChatView', 'suggestReplies failed', e, st);
       }
     } catch (e, st) {
       AppLogger.e('AgentChatView', 'streamChat failed', e, st);
@@ -871,6 +886,38 @@ class _AgentChatViewState extends State<AgentChatView> {
                                   color: AppColors.appPrimaryColor),
                             ),
                           ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              )
+            else if (_suggestedReplies.isNotEmpty && !_sending)
+              Container(
+                width: double.infinity,
+                color: AppColors.appChatBackgroundColor,
+                padding: const EdgeInsets.fromLTRB(12, 7, 12, 3),
+                child: Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: _suggestedReplies.map((reply) {
+                    return InkWell(
+                      onTap: () => _send(reply),
+                      borderRadius: BorderRadius.circular(100),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 13, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.appPrimaryColor.withOpacity(0.08),
+                          border: Border.all(color: AppColors.appPrimaryColor),
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                        child: Text(
+                          reply,
+                          style: AppFonts.body(
+                              size: 12.5,
+                              weight: FontWeight.w500,
+                              color: AppColors.appPrimaryColor),
                         ),
                       ),
                     );
