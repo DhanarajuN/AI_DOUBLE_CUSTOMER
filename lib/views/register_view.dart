@@ -3,8 +3,8 @@ import '../services/app_logger.dart';
 import '../services/registration_service.dart';
 import '../theme/app_theme.dart';
 
-/// Member registration form — two collapsible sections (Professional
-/// Details, Location) matching the web portal's field set. Submit posts to
+/// Member registration form — two collapsible sections (Personal Details,
+/// Member Location) matching the web portal's field set. Submit posts to
 /// RegistrationService (GoSure's generic job-instance API) — see that
 /// file's TODO for the still-unconfirmed jobTypeId and data-key names.
 class RegisterView extends StatefulWidget {
@@ -44,9 +44,7 @@ class _RegisterViewState extends State<RegisterView> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
-  final _passwordCtrl = TextEditingController();
   final _mobileCtrl = TextEditingController();
-  final _industryCtrl = TextEditingController();
   final _postalCodeCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
@@ -54,7 +52,6 @@ class _RegisterViewState extends State<RegisterView> {
 
   bool _companyExpanded = true;
   bool _locationExpanded = true;
-  bool _obscurePassword = true;
   bool _submitting = false;
   bool _submitted = false;
 
@@ -63,9 +60,7 @@ class _RegisterViewState extends State<RegisterView> {
     for (final c in [
       _nameCtrl,
       _emailCtrl,
-      _passwordCtrl,
       _mobileCtrl,
-      _industryCtrl,
       _postalCodeCtrl,
       _addressCtrl,
       _cityCtrl,
@@ -90,13 +85,11 @@ class _RegisterViewState extends State<RegisterView> {
       await RegistrationService.submit({
         'Name': _nameCtrl.text.trim(),
         'Email': _emailCtrl.text.trim(),
-        'Password': _passwordCtrl.text,
         'Mobile No': _mobileCtrl.text.trim(),
-        'Industry': _industryCtrl.text.trim(),
-        'Address': _addressCtrl.text.trim(),
-        'City': _cityCtrl.text.trim(),
-        'Country': _countryCtrl.text.trim(),
-        'Postal Code': _postalCodeCtrl.text.trim(),
+        if (_addressCtrl.text.trim().isNotEmpty) 'Address': _addressCtrl.text.trim(),
+        if (_cityCtrl.text.trim().isNotEmpty) 'City': _cityCtrl.text.trim(),
+        if (_countryCtrl.text.trim().isNotEmpty) 'Country': _countryCtrl.text.trim(),
+        if (_postalCodeCtrl.text.trim().isNotEmpty) 'Postal Code': _postalCodeCtrl.text.trim(),
       });
       if (!mounted) return;
       setState(() {
@@ -151,7 +144,7 @@ class _RegisterViewState extends State<RegisterView> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _Section(
-                      title: 'Professional Details',
+                      title: 'Personal Details',
                       expanded: _companyExpanded,
                       onToggle: () => setState(() => _companyExpanded = !_companyExpanded),
                       children: [
@@ -172,34 +165,12 @@ class _RegisterViewState extends State<RegisterView> {
                         ),
                         const SizedBox(height: 14),
                         _field(
-                          controller: _passwordCtrl,
-                          label: 'Password',
-                          required: true,
-                          obscureText: _obscurePassword,
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                              color: AppColors.appTextMutedColor,
-                              size: 19,
-                            ),
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                          ),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) return 'Password is required';
-                            if (v.length < 6) return 'Must be at least 6 characters';
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 14),
-                        _field(
                           controller: _mobileCtrl,
                           label: 'Mobile No',
                           required: true,
                           keyboardType: TextInputType.phone,
                           validator: (v) => _validateRequired(v, 'Mobile No', _mobileRegex, 'Enter a valid mobile number'),
                         ),
-                        const SizedBox(height: 14),
-                        _field(controller: _industryCtrl, label: 'Industry', keyboardType: TextInputType.text),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -232,10 +203,9 @@ class _RegisterViewState extends State<RegisterView> {
                         _field(
                           controller: _postalCodeCtrl,
                           label: 'Postal Code',
-                          required: true,
                           keyboardType: TextInputType.number,
                           validator: (v) =>
-                              _validateRequired(v, 'Postal Code', _postalCodeRegex, 'Enter a valid postal code'),
+                              _validateOptional(v, _postalCodeRegex, 'Enter a valid postal code'),
                         ),
                       ],
                     ),

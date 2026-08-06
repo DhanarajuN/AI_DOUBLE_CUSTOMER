@@ -6,17 +6,17 @@ import 'app_logger.dart';
 class RegistrationService {
   RegistrationService._();
 
-  static const _jobTypeId = 'TODO_REGISTRATION_JOB_TYPE_ID';
-
-  static Future<void> submit(Map<String, dynamic> data) async {
+  static Future<void> submit(Map<String, dynamic> data, {String jobTypeName = 'Members'}) async {
     AppLogger.i('Registration', 'submit request: ${redactJson(data)}');
+    final uri = Uri.parse('${ServerUrls.baseUrl}${ServerUrls.createInstance}')
+        .replace(queryParameters: {'jobTypeName': jobTypeName});
     final response = await http.post(
-      Uri.parse('${ServerUrls.baseUrl}${ServerUrls.createInstance}'),
+      uri,
       headers: {
         'X-Tenant': ServerUrls.tenant,
         'Content-Type': 'application/json',
       },
-      body: jsonEncode({'data': data, 'jobTypeId': _jobTypeId}),
+      body: jsonEncode({'data': data}),
     );
     AppLogger.i('Registration', 'submit -> ${response.statusCode}: ${redactedPreview(response.body)}');
     if (response.statusCode < 200 || response.statusCode >= 300) {
