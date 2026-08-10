@@ -78,7 +78,10 @@ class ApiClient {
     final body = response.body.isEmpty ? null : jsonDecode(response.body);
     if (status < 200 || status >= 300) {
       String? stringField(String key) => body is Map && body[key] is String ? body[key] as String : null;
-      final serverMessage = stringField('msg') ?? stringField('message');
+      String? listField(String key) => body is Map && body[key] is List
+          ? (body[key] as List).map((e) => e.toString()).join(', ')
+          : null;
+      final serverMessage = stringField('msg') ?? stringField('message') ?? listField('messages');
       final reason = response.reasonPhrase;
       // reasonPhrase is often an empty string (not null) on HTTP/2 responses,
       // which have no reason phrase — so a plain `??` fallback misses it and

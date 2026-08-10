@@ -17,9 +17,13 @@ class ServerUrls {
 
   static const String ssoSessionLogin = '/api/v1/users/sso/session-login';
 
-  static const String createInstance = '/api/v1/public/create-instance';
+  static const String createInstancePublic = '/api/v1/public/create-instance';
+
+  static const String createInstance = '/api/v1/job-instances';
 
   static const String bookingsInstances = '/api/v1/job-types/name/Bookings/instances';
+
+  static const String membersInstances = '/api/v1/job-types/name/Members/instances';
 
   static const String jobInstances = '/api/v1/job-instances/';
 

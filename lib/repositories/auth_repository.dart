@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
+import 'package:http/http.dart' as http;
+import '../constants/app_constants.dart';
 import '../constants/server_urls.dart';
 import '../models/user.dart';
 import '../services/api_client.dart';
@@ -153,6 +156,7 @@ class AuthRepository extends ChangeNotifier {
         roleName: json['accRoleName'] as String,
       );
       AppLogger.i('AuthRepository', 'Google sign-in succeeded');
+      await _ensureMemberRecord(json['username'] as String, json['token'] as String);
       return true;
     } on PlatformException catch (e) {
       // User closed the browser tab / cancelled the Google sign-in.
@@ -189,6 +193,56 @@ class AuthRepository extends ChangeNotifier {
     _currentUser = user;
     _status = AuthStatus.authenticated;
     await fetchModuleConstants();
+  }
+
+  Future<void> _ensureMemberRecord(String email, String accessToken) async {
+    try {
+      final filters = jsonEncode([
+        {'fieldName': 'Email', 'condition': 'contains', 'value': email},
+      ]);
+      final json = await _apiClient.get(
+        ServerUrls.membersInstances,
+        query: {'pageNumber': '1', 'pageSize': '10', 'filters': filters},
+      ) as Map<String, dynamic>;
+      final jobs = json['jobs'] as List?;
+      if (jobs != null && jobs.isNotEmpty) {
+        AppLogger.i('AuthRepository', 'ensureMemberRecord: existing Members record for $email');
+        return;
+      }
+
+      final name = email.split('@').first;
+      AppLogger.i('AuthRepository',
+          'ensureMemberRecord: no Members record for $email, creating one (name=$name)');
+
+      final body = jsonEncode({
+        'data': {
+          'Member ID': '',
+          'Name': name,
+          'Email': email,
+          'Address': '',
+          'City': '',
+          'Country': '',
+          'Mobile No': '',
+          'Postal Code': '',
+        },
+        'jobTypeId': AppConstants.memberJobTypeId,
+      });
+      final response = await http.post(
+        Uri.parse('${ServerUrls.baseUrl}${ServerUrls.createInstance}'),
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+        body: body,
+      );
+      AppLogger.i('AuthRepository',
+          'ensureMemberRecord: create -> ${response.statusCode}: ${redactedPreview(response.body)}');
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('Create Members instance failed (${response.statusCode}): ${response.body}');
+      }
+    } catch (e, st) {
+      AppLogger.e('AuthRepository', 'ensureMemberRecord($email) failed', e, st);
+    }
   }
 
   Future<void> logout() async {
