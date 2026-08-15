@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../repositories/auth_repository.dart';
 import '../routes/app_routes.dart';
 import '../services/app_logger.dart';
 import '../services/librechat_service.dart';
+import '../services/session_storage.dart';
 import '../theme/app_theme.dart';
 import '../widgets/new_request_sheet.dart';
 import 'agent_chat_view.dart';
@@ -24,6 +27,20 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
   bool _loading = true;
   String? _error;
   String _query = '';
+
+  // Unread-style badge state: server's live message count per conversation, and how
+  // many of those this device has already seen (persisted, see SessionStorage).
+  final _sessionStorage = SessionStorage();
+  Map<String, int> _counts = {};
+  Map<String, int> _seenCounts = {};
+
+  int _unreadCountFor(String? conversationId) {
+    if (conversationId == null) return 0;
+    final total = _counts[conversationId] ?? 0;
+    final seen = _seenCounts[conversationId] ?? 0;
+    final diff = total - seen;
+    return diff > 0 ? diff : 0;
+  }
 
   @override
   void initState() {
@@ -60,6 +77,7 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
         _conversations = convos;
         _loading = false;
       });
+      unawaited(_loadBadgeState(convos));
     } catch (e, st) {
       AppLogger.e('ChatListView', 'fetchConversations failed', e, st);
       if (!mounted) return;
@@ -70,14 +88,35 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
     }
   }
 
+  Future<void> _loadBadgeState(List<Map<String, dynamic>> convos) async {
+    final ids = convos
+        .map((c) => c['conversationId'] as String?)
+        .whereType<String>()
+        .toList();
+    if (ids.isEmpty) return;
+    final counts = await LibreChatService.fetchConversationCounts(ids);
+    final seen = <String, int>{};
+    for (final id in ids) {
+      seen[id] = await _sessionStorage.readLastSeenCount(id);
+    }
+    if (!mounted) return;
+    setState(() {
+      _counts = counts;
+      _seenCounts = seen;
+    });
+  }
+
   List<Map<String, dynamic>> get _visible {
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) return _conversations;
-    return _conversations.where((c) => ((c['title'] as String?) ?? '').toLowerCase().contains(q)).toList();
+    return _conversations
+        .where((c) => ((c['title'] as String?) ?? '').toLowerCase().contains(q))
+        .toList();
   }
 
   String _initials(String title) {
-    final words = title.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final words =
+        title.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
     if (words.isEmpty) return '?';
     if (words.length == 1) return words[0][0].toUpperCase();
     return (words[0][0] + words[1][0]).toUpperCase();
@@ -122,7 +161,9 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
                               child: SizedBox(
                                 width: 22,
                                 height: 22,
-                                child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.appPrimaryColor),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                    color: AppColors.appPrimaryColor),
                               ),
                             ),
                           )
@@ -132,7 +173,9 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
                             child: Center(
                               child: Text(
                                 'Could not load chats. Pull to refresh.',
-                                style: AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor),
+                                style: AppFonts.body(
+                                    size: 13.5,
+                                    color: AppColors.appTextSecondaryColor),
                               ),
                             ),
                           )
@@ -144,7 +187,9 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
                               child: Center(
                                 child: Text(
                                   'No chats matching "$_query"',
-                                  style: AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor),
+                                  style: AppFonts.body(
+                                      size: 13.5,
+                                      color: AppColors.appTextSecondaryColor),
                                 ),
                               ),
                             ),
@@ -154,7 +199,9 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
                               child: Center(
                                 child: Text(
                                   'No chats yet — tap + to start one.',
-                                  style: AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor),
+                                  style: AppFonts.body(
+                                      size: 13.5,
+                                      color: AppColors.appTextSecondaryColor),
                                 ),
                               ),
                             ),
@@ -167,14 +214,16 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
                     bottom: 24,
                     child: FloatingActionButton(
                       backgroundColor: AppColors.appPrimaryColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18)),
                       onPressed: () async {
                         final agent = await showNewRequestSheet(context);
                         if (agent != null && context.mounted) {
                           await AgentChatView.open(context, agent);
                         }
                       },
-                      child: const Icon(Icons.add, color: AppColors.appOnPrimaryColor, size: 26),
+                      child: const Icon(Icons.add,
+                          color: AppColors.appOnPrimaryColor, size: 26),
                     ),
                   ),
                 ],
@@ -191,10 +240,18 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
     final time = _relativeTime(convo['updatedAt'] as String?);
     final conversationId = convo['conversationId'] as String?;
     final agentId = convo['agent_id'] as String?;
+    // Existing conversations that already carry a resolved businessId
+    // (tagged when the chat was first created) skip the business-picker
+    // step entirely — see AgentChatView.openExisting.
+    final businessId = convo['businessId'] as String?;
+    final unread = _unreadCountFor(conversationId);
     return InkWell(
       onTap: (conversationId == null || agentId == null)
           ? null
-          : () => AgentChatView.openExisting(context, conversationId: conversationId, agentId: agentId),
+          : () => AgentChatView.openExisting(context,
+              conversationId: conversationId,
+              agentId: agentId,
+              businessId: businessId),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
         child: Row(
@@ -203,11 +260,14 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
             Container(
               width: 50,
               height: 50,
-              decoration: BoxDecoration(gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                  gradient: AppColors.appPrimaryGradient,
+                  shape: BoxShape.circle),
               alignment: Alignment.center,
               child: Text(
                 _initials(title),
-                style: AppFonts.display(size: 16, weight: FontWeight.w600, color: Colors.white),
+                style: AppFonts.display(
+                    size: 16, weight: FontWeight.w600, color: Colors.white),
               ),
             ),
             const SizedBox(width: 12),
@@ -215,7 +275,8 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
               child: Container(
                 padding: const EdgeInsets.only(bottom: 11),
                 decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: AppColors.appBorderColor)),
+                  border: Border(
+                      bottom: BorderSide(color: AppColors.appBorderColor)),
                 ),
                 child: Row(
                   children: [
@@ -224,11 +285,40 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppFonts.body(size: 15.5, weight: FontWeight.w600),
+                        style:
+                            AppFonts.body(size: 15.5, weight: FontWeight.w600),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(time, style: AppFonts.body(size: 11, color: AppColors.appTextMutedColor)),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(time,
+                            style: AppFonts.body(
+                                size: 11, color: AppColors.appTextMutedColor)),
+                        if (unread > 0) ...[
+                          const SizedBox(height: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 2),
+                            constraints: const BoxConstraints(minWidth: 20),
+                            decoration: BoxDecoration(
+                              color: AppColors.appPrimaryColor,
+                              borderRadius: BorderRadius.circular(11),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              unread > 99 ? '99+' : '$unread',
+                              textAlign: TextAlign.center,
+                              style: AppFonts.body(
+                                  size: 11,
+                                  weight: FontWeight.w700,
+                                  color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -257,7 +347,9 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
             ),
             child: Stack(
               children: [
-                const Center(child: Icon(Icons.forum_outlined, color: Colors.white, size: 18)),
+                const Center(
+                    child: Icon(Icons.forum_outlined,
+                        color: Colors.white, size: 18)),
                 Positioned(
                   bottom: -2,
                   right: -2,
@@ -267,7 +359,8 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
                     decoration: BoxDecoration(
                       color: AppColors.appSecondaryColor,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.appSurfaceColor, width: 2),
+                      border: Border.all(
+                          color: AppColors.appSurfaceColor, width: 2),
                     ),
                   ),
                 ),
@@ -284,7 +377,13 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
                     style: AppFonts.display(size: 19),
                     children: [
                       const TextSpan(text: 'AI '),
-                      TextSpan(text: 'Double', style: AppFonts.display(size: 19, weight: FontWeight.w400, color: AppColors.appSecondaryColor).copyWith(fontStyle: FontStyle.italic)),
+                      TextSpan(
+                          text: 'Double',
+                          style: AppFonts.display(
+                                  size: 19,
+                                  weight: FontWeight.w400,
+                                  color: AppColors.appSecondaryColor)
+                              .copyWith(fontStyle: FontStyle.italic)),
                     ],
                   ),
                 ),
@@ -299,7 +398,8 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert, color: AppColors.appTextSecondaryColor),
             color: AppColors.appSurfaceVariantColor,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             onSelected: (value) {
               if (value == 'bookings') {
                 Navigator.of(context).push(BookingsView.route());
@@ -347,7 +447,8 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
                   isDense: true,
                   border: InputBorder.none,
                   hintText: 'Search chats…',
-                  hintStyle: AppFonts.body(size: 13.5, color: AppColors.appTextMutedColor),
+                  hintStyle: AppFonts.body(
+                      size: 13.5, color: AppColors.appTextMutedColor),
                 ),
               ),
             ),
@@ -359,7 +460,8 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
                 },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 9),
-                  child: Icon(Icons.close, size: 16, color: AppColors.appTextMutedColor),
+                  child: Icon(Icons.close,
+                      size: 16, color: AppColors.appTextMutedColor),
                 ),
               ),
           ],
@@ -377,16 +479,23 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
         title: Text('Log out?', style: AppFonts.display(size: 17)),
         content: Text(
           "You'll need to sign in again to access your chats.",
-          style: AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor),
+          style:
+              AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancel', style: AppFonts.body(size: 14, color: AppColors.appTextSecondaryColor)),
+            child: Text('Cancel',
+                style: AppFonts.body(
+                    size: 14, color: AppColors.appTextSecondaryColor)),
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Log out', style: AppFonts.body(size: 14, weight: FontWeight.w600, color: AppColors.appPrimaryColor)),
+            child: Text('Log out',
+                style: AppFonts.body(
+                    size: 14,
+                    weight: FontWeight.w600,
+                    color: AppColors.appPrimaryColor)),
           ),
         ],
       ),
@@ -394,7 +503,8 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
     if (confirmed == true && context.mounted) {
       await context.read<AuthRepository>().logout();
       if (context.mounted) {
-        Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
+        Navigator.of(context)
+            .pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
       }
     }
   }

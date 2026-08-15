@@ -8,21 +8,25 @@ import '../views/splash_view.dart';
 final routeObserver = RouteObserver<PageRoute<dynamic>>();
 
 class AppNavigatorObserver extends NavigatorObserver {
-  String _label(Route<dynamic>? route) => route?.settings.name ?? route?.runtimeType.toString() ?? 'unknown';
+  String _label(Route<dynamic>? route) =>
+      route?.settings.name ?? route?.runtimeType.toString() ?? 'unknown';
 
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    AppLogger.i('Navigation', 'push ${_label(route)} (from ${_label(previousRoute)})');
+    AppLogger.i(
+        'Navigation', 'push ${_label(route)} (from ${_label(previousRoute)})');
   }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    AppLogger.i('Navigation', 'pop ${_label(route)} (back to ${_label(previousRoute)})');
+    AppLogger.i('Navigation',
+        'pop ${_label(route)} (back to ${_label(previousRoute)})');
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
-    AppLogger.i('Navigation', 'replace ${_label(oldRoute)} with ${_label(newRoute)}');
+    AppLogger.i(
+        'Navigation', 'replace ${_label(oldRoute)} with ${_label(newRoute)}');
   }
 }
 
@@ -37,11 +41,14 @@ class AppRoutes {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
       case splash:
-        return MaterialPageRoute(builder: (_) => const SplashView(), settings: settings);
+        return MaterialPageRoute(
+            builder: (_) => const SplashView(), settings: settings);
       case login:
-        return MaterialPageRoute(builder: (_) => const LoginView(), settings: settings);
+        return MaterialPageRoute(
+            builder: (_) => const LoginView(), settings: settings);
       case chatList:
-        return MaterialPageRoute(builder: (_) => const ChatListView(), settings: settings);
+        return MaterialPageRoute(
+            builder: (_) => const ChatListView(), settings: settings);
       case agentThread:
         final args = settings.arguments as AgentThreadArgs;
         return MaterialPageRoute(
@@ -49,13 +56,15 @@ class AppRoutes {
             agent: args.agent,
             initialConversationId: args.conversationId,
             initialMessages: args.initialMessages,
+            businessId: args.businessId,
           ),
           settings: settings,
         );
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(
-            body: Center(child: Text('No route defined for "${settings.name}"')),
+            body:
+                Center(child: Text('No route defined for "${settings.name}"')),
           ),
           settings: settings,
         );

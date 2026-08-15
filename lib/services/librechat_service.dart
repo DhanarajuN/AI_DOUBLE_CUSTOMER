@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
@@ -89,6 +90,30 @@ class LibreChatService {
     return data.cast<Map<String, dynamic>>();
   }
 
+  // Batch message counts for the chat list's unread badges — one request for every
+  // visible conversation instead of one per row. Stock GET /api/convos (above) has no
+  // message-count field, so this is a small Gosure-side addition alongside it.
+  static Future<Map<String, int>> fetchConversationCounts(
+      List<String> conversationIds) async {
+    if (conversationIds.isEmpty) return {};
+    final response = await http.post(
+      Uri.parse(
+          '${ServerUrls.librechatURL}${ServerUrls.gosureConvoEvents}counts'),
+      headers: {...await _headers(), 'Content-Type': 'application/json'},
+      body: jsonEncode({'conversationIds': conversationIds}),
+    );
+    AppLogger.i('LibreChat',
+        'fetchConversationCounts(${conversationIds.length} ids) -> ${response.statusCode}');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      // Best-effort: a failed count fetch shouldn't block the chat list from showing.
+      return {};
+    }
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final counts = json['counts'] as Map<String, dynamic>?;
+    if (counts == null) return {};
+    return counts.map((key, value) => MapEntry(key, (value as num).toInt()));
+  }
+
   static Future<List<Map<String, dynamic>>> fetchMessages(
       String conversationId) async {
     final response = await http.get(
@@ -117,10 +142,11 @@ class LibreChatService {
     final headers = {
       if (token != null) 'Authorization': 'Bearer $token',
     };
-    AppLogger.i('LibreChat', 'uploadToGosureAttachments($filename) headers: $headers');
+    AppLogger.i(
+        'LibreChat', 'uploadToGosureAttachments($filename) headers: $headers');
 
-    final request = http.MultipartRequest(
-        'POST', Uri.parse('${ServerUrls.baseUrl}${ServerUrls.attachmentsUpload}'))
+    final request = http.MultipartRequest('POST',
+        Uri.parse('${ServerUrls.baseUrl}${ServerUrls.attachmentsUpload}'))
       ..headers.addAll(headers)
       ..files.add(http.MultipartFile.fromBytes('attachment', bytes,
           filename: filename, contentType: _mediaTypeFor(filename)));
@@ -138,7 +164,8 @@ class LibreChatService {
   static Future<Uint8List> downloadAttachment(String fileId) async {
     final token = await _gosureToken();
     final response = await http.get(
-      Uri.parse('${ServerUrls.baseUrl}${ServerUrls.attachmentsDownload}?id=$fileId'),
+      Uri.parse(
+          '${ServerUrls.baseUrl}${ServerUrls.attachmentsDownload}?id=$fileId'),
       headers: {
         if (token != null) 'Authorization': 'Bearer $token',
       },
@@ -167,16 +194,18 @@ class LibreChatService {
       if (width != null) 'width': width.toString(),
       if (height != null) 'height': height.toString(),
     };
-    fields.forEach((key, value) =>
-        AppLogger.i('LibreChat', 'uploadAttachment($filename) form field: $key=$value'));
+    fields.forEach((key, value) => AppLogger.i(
+        'LibreChat', 'uploadAttachment($filename) form field: $key=$value'));
     AppLogger.i('LibreChat',
         'uploadAttachment($filename) form field: file=<${bytes.length} bytes>');
 
     final headers = await _headers();
     AppLogger.i('LibreChat', 'uploadAttachment($filename) headers: $headers');
 
-    final request = http.MultipartRequest('POST',
-        Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatFilesImages}'))
+    final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(
+            '${ServerUrls.librechatURL}${ServerUrls.librechatFilesImages}'))
       ..headers.addAll(headers)
       ..fields.addAll(fields)
       ..files.add(http.MultipartFile.fromBytes('file', bytes,
@@ -201,10 +230,12 @@ class LibreChatService {
     required String messageId,
     required String parentMessageId,
     String? conversationId,
+    String? businessId,
+    String? senderName,
     List<Map<String, dynamic>>? files,
   }) async {
     AppLogger.i('LibreChat',
-        'sendChatMessage request: agentId=$agentId conversationId=$conversationId textLen=${text.length} files=${files?.length ?? 0}');
+        'sendChatMessage request: agentId=$agentId conversationId=$conversationId businessId=$businessId textLen=${text.length} files=${files?.length ?? 0}');
     final response = await http.post(
       Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatAgentChat}'),
       headers: {
@@ -218,6 +249,9 @@ class LibreChatService {
         'messageId': messageId,
         'parentMessageId': parentMessageId,
         'conversationId': conversationId,
+        'businessId': businessId,
+        if (senderName != null && senderName.isNotEmpty)
+          'senderName': senderName,
         'isContinued': false,
         if (files != null && files.isNotEmpty) 'files': files,
       }),
@@ -237,7 +271,8 @@ class LibreChatService {
     String? agentDescription,
   }) async {
     final response = await http.post(
-      Uri.parse('${ServerUrls.librechatURL}${ServerUrls.librechatSuggestReplies}'),
+      Uri.parse(
+          '${ServerUrls.librechatURL}${ServerUrls.librechatSuggestReplies}'),
       headers: {
         ...await _headers(),
         'Content-Type': 'application/json',
@@ -273,38 +308,111 @@ class LibreChatService {
     return client.send(request);
   }
 
-  static Stream<Map<String, dynamic>> streamChat(String conversationId) async* {
-    AppLogger.i('LibreChat', 'streamChat($conversationId) opening');
-    final client = http.Client();
-    final response = await _openStream(client, conversationId);
-    AppLogger.i('LibreChat',
-        'streamChat($conversationId) -> ${response.statusCode}');
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      client.close();
-      throw Exception('Failed to open chat stream (${response.statusCode})');
-    }
-
+  // Shared plumbing for both streams below. Deliberately NOT an `async*` generator:
+  // cancelling a subscription over an async* function only unwinds the generator (and
+  // runs its `finally`/closes the client) the NEXT time it reaches an await/yield point
+  // — if the server has nothing new to send, that doesn't happen until the next 30s
+  // heartbeat, so the real HTTP connection stays open long after the app considers it
+  // "closed". Reopening streams (new turns, reopening a conversation) faster than that
+  // leaks connections until the browser's per-origin connection limit is hit, at which
+  // point every request — including a plain fetch — queues forever behind the leaked
+  // ones. A StreamController with an explicit onCancel that force-closes the client
+  // fixes this: cancellation now tears down the underlying socket immediately.
+  static Stream<Map<String, dynamic>> _openEventStream(
+    String label,
+    Future<http.StreamedResponse> Function(http.Client) send,
+  ) {
+    http.Client? client;
+    StreamSubscription<String>? lineSub;
+    late final StreamController<Map<String, dynamic>> controller;
     var eventCount = 0;
-    try {
-      await for (final line in response.stream
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())) {
-        if (!line.startsWith('data: ')) continue;
-        final jsonStr = line.substring(6);
-        if (jsonStr.isEmpty) continue;
-        final event = jsonDecode(jsonStr) as Map<String, dynamic>;
-        eventCount++;
-        if (event['final'] == true) {
-          AppLogger.i('LibreChat',
-              'streamChat($conversationId) final event after $eventCount events');
+
+    Future<void> start() async {
+      final c = http.Client();
+      client = c;
+      AppLogger.i('LibreChat', '$label opening');
+      try {
+        final response = await send(c);
+        AppLogger.i('LibreChat', '$label -> ${response.statusCode}');
+
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          controller.addError(
+              Exception('Failed to open stream (${response.statusCode})'));
+          await controller.close();
+          c.close();
+          return;
         }
-        yield event;
+
+        lineSub = response.stream
+            .transform(utf8.decoder)
+            .transform(const LineSplitter())
+            .listen(
+              (line) {
+                if (!line.startsWith('data: ')) return;
+                final jsonStr = line.substring(6);
+                if (jsonStr.isEmpty) return;
+                eventCount++;
+                controller.add(jsonDecode(jsonStr) as Map<String, dynamic>);
+              },
+              onError: (Object e) => controller.addError(e),
+              onDone: () {
+                AppLogger.i(
+                    'LibreChat', '$label closed after $eventCount events');
+                controller.close();
+              },
+            );
+      } catch (e) {
+        controller.addError(e);
+        await controller.close();
       }
-    } finally {
-      AppLogger.i('LibreChat',
-          'streamChat($conversationId) closed after $eventCount events');
-      client.close();
     }
+
+    controller = StreamController<Map<String, dynamic>>(
+      onListen: start,
+      onCancel: () {
+        AppLogger.i(
+            'LibreChat', '$label cancelled, closing connection immediately');
+        lineSub?.cancel();
+        client?.close();
+      },
+    );
+    return controller.stream;
+  }
+
+  static Stream<Map<String, dynamic>> streamChat(String conversationId) {
+    return _openEventStream(
+      'streamChat($conversationId)',
+      (client) => _openStream(client, conversationId),
+    );
+  }
+
+  static Future<http.StreamedResponse> _openEventsStream(
+      http.Client client, String conversationId) async {
+    final request = http.Request(
+      'GET',
+      Uri.parse(
+          '${ServerUrls.librechatURL}${ServerUrls.gosureConvoEvents}$conversationId/events'),
+    );
+    request.headers.addAll({
+      ...await _headers(),
+      'Accept': 'text/event-stream',
+    });
+    return client.send(request);
+  }
+
+  /// Persistent, always-open per-conversation event stream — separate from
+  /// [streamChat] (the per-turn generation stream that closes once a reply
+  /// finishes). Powers live human handoff: `message.created` events for
+  /// messages sent by a business team member, and `agent-mode.changed`
+  /// events when a team member silences/resumes the AI. Stays connected
+  /// for the lifetime of the subscription; the server sends a `: heartbeat`
+  /// comment line every 30s to keep it alive, which — like any line that
+  /// isn't an SSE `data:` field — is ignored below.
+  static Stream<Map<String, dynamic>> streamConversationEvents(
+      String conversationId) {
+    return _openEventStream(
+      'streamConversationEvents($conversationId)',
+      (client) => _openEventsStream(client, conversationId),
+    );
   }
 }

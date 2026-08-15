@@ -5,7 +5,8 @@ class AuthSession {
   final String accessToken;
   final String token;
   final User user;
-  const AuthSession({required this.accessToken, required this.token, required this.user});
+  const AuthSession(
+      {required this.accessToken, required this.token, required this.user});
 }
 
 class SessionStorage {
@@ -21,7 +22,6 @@ class SessionStorage {
     return prefs.getString(_accessTokenKey);
   }
 
- 
   Future<String?> readUserId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_userIdKey);
@@ -40,17 +40,26 @@ class SessionStorage {
     final name = prefs.getString(_nameKey);
     final username = prefs.getString(_usernameKey);
     final roleName = prefs.getString(_roleNameKey);
-    if (accessToken == null || token == null || userId == null || name == null || username == null || roleName == null) {
+    if (accessToken == null ||
+        token == null ||
+        userId == null ||
+        name == null ||
+        username == null ||
+        roleName == null) {
       return null;
     }
     return AuthSession(
       accessToken: accessToken,
       token: token,
-      user: User(id: userId, name: name, username: username, roleName: roleName),
+      user:
+          User(id: userId, name: name, username: username, roleName: roleName),
     );
   }
 
-  Future<void> saveSession({required String accessToken, required String token, required User user}) async {
+  Future<void> saveSession(
+      {required String accessToken,
+      required String token,
+      required User user}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_accessTokenKey, accessToken);
     await prefs.setString(_tokenKey, token);
@@ -68,5 +77,20 @@ class SessionStorage {
     await prefs.remove(_nameKey);
     await prefs.remove(_usernameKey);
     await prefs.remove(_roleNameKey);
+  }
+
+  // How many messages this device had already seen in a conversation as of the last
+  // time it was opened — compared against the server's live message count to show a
+  // "N new" badge on the chat list, the same way AI_DOUBLE_BUSINESS does it.
+  static const _readCountPrefix = 'gosure_read_count_';
+
+  Future<int> readLastSeenCount(String conversationId) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('$_readCountPrefix$conversationId') ?? 0;
+  }
+
+  Future<void> saveLastSeenCount(String conversationId, int count) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('$_readCountPrefix$conversationId', count);
   }
 }

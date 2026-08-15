@@ -21,19 +21,33 @@ class ServerUrls {
 
   static const String createInstance = '/api/v1/job-instances';
 
-  static const String bookingsInstances = '/api/v1/job-types/name/Bookings/instances';
+  static const String bookingsInstances =
+      '/api/v1/job-types/name/Bookings/instances';
 
-  static const String membersInstances = '/api/v1/job-types/name/Members/instances';
+  static const String membersInstances =
+      '/api/v1/job-types/name/Members/instances';
+
+  static const String businessInstances =
+      '/api/v1/job-types/name/Business/instances';
 
   static const String jobInstances = '/api/v1/job-instances/';
 
-  static const String updateWorkflowStatus = '/api/v1/job-instances/update-workflow-status';
+  static const String updateWorkflowStatus =
+      '/api/v1/job-instances/update-workflow-status';
 
   static const String attachmentsUpload = '/api/v1/attachments/upload';
 
   static const String attachmentsDownload = '/api/v1/attachments/download';
 
-  static const String librechatURL = 'https://librechat-backend-olj53mb3da-el.a.run.app';
+  static const String librechatURL = String.fromEnvironment(
+    'LIBRECHAT_URL',
+    defaultValue: 'https://librechat-backend-olj53mb3da-el.a.run.app',
+  );
+
+  static const String coreMcpUrl = String.fromEnvironment(
+    'CORE_MCP_URL',
+    defaultValue: 'https://dev.gosure.ai',
+  );
 
   static const String librechatAgents = '/api/agents/';
 
@@ -48,4 +62,9 @@ class ServerUrls {
   static const String librechatMessages = '/api/messages/';
 
   static const String librechatSuggestReplies = '/api/agents/suggest-replies';
+
+  // Persistent, always-open per-conversation event stream (business
+  // handoff: message.created / agent-mode.changed) — distinct from
+  // [librechatAgentChatStream], which is the per-turn generation stream.
+  static const String gosureConvoEvents = '/api/gosure/convos/';
 }

@@ -6,10 +6,14 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:provider/provider.dart';
+import '../repositories/auth_repository.dart';
 import '../routes/app_routes.dart';
 import '../services/app_logger.dart';
 import '../services/librechat_service.dart';
+import '../services/session_storage.dart';
 import '../theme/app_theme.dart';
+import '../widgets/business_picker_sheet.dart';
 import '../widgets/message_bubble.dart';
 
 class _Starter {
@@ -24,6 +28,19 @@ class _Msg {
   final String time;
   bool isStreaming;
   bool isError;
+  // Server-assigned id — set on user messages up front (we generate it
+  // before the request) and on assistant/business messages once known, so
+  // events coming in over streamConversationEvents can be deduped against
+  // whatever's already rendered here.
+  String? messageId;
+  // True for messages sent by a business team member during live handoff
+  // (sender == 'Business' on the conversation-events stream) — rendered in
+  // a visually distinct bubble from both the customer's own and the AI's.
+  bool isBusiness;
+  // The actual business's name (resolved server-side, see
+  // Gosure/businessLookup.js), shown instead of a generic "Team member"
+  // label when available.
+  String? senderName;
   final List<_PendingAttachment> attachments;
   _Msg({
     required this.isMe,
@@ -31,6 +48,9 @@ class _Msg {
     required this.time,
     this.isStreaming = false,
     this.isError = false,
+    this.messageId,
+    this.isBusiness = false,
+    this.senderName,
     this.attachments = const [],
   });
 }
@@ -54,19 +74,25 @@ class AgentThreadArgs {
   final Map<String, dynamic> agent;
   final String? conversationId;
   final List<Map<String, dynamic>>? initialMessages;
+  final String? businessId;
   const AgentThreadArgs(
-      {required this.agent, this.conversationId, this.initialMessages});
+      {required this.agent,
+      this.conversationId,
+      this.initialMessages,
+      this.businessId});
 }
 
 class AgentChatView extends StatefulWidget {
   final Map<String, dynamic> agent;
   final String? initialConversationId;
   final List<Map<String, dynamic>>? initialMessages;
+  final String? businessId;
   const AgentChatView(
       {super.key,
       required this.agent,
       this.initialConversationId,
-      this.initialMessages});
+      this.initialMessages,
+      this.businessId});
 
   static Future<void> open(
       BuildContext context, Map<String, dynamic> agentSummary) async {
@@ -86,12 +112,9 @@ class AgentChatView extends StatefulWidget {
       ),
     );
 
+    Map<String, dynamic> detail;
     try {
-      final detail = await LibreChatService.fetchAgentById(id);
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
-      Navigator.of(context).pushNamed(AppRoutes.agentThread,
-          arguments: AgentThreadArgs(agent: detail));
+      detail = await LibreChatService.fetchAgentById(id);
     } catch (e, st) {
       AppLogger.e('AgentChatView', 'open($id) failed', e, st);
       if (!context.mounted) return;
@@ -99,13 +122,42 @@ class AgentChatView extends StatefulWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not open agent: $e')),
       );
+      return;
     }
+    if (!context.mounted) return;
+    Navigator.of(context).pop();
+    // Popping the loading dialog and immediately showing another overlay in
+    // the same synchronous continuation races Flutter's own element-tree
+    // teardown for the popped route — intermittently throws "_elements.contains
+    // (element) is not true" once the new overlay tries to insert before the
+    // pop has fully settled. Yielding a frame first (a Flutter-recommended,
+    // low-risk fix for this exact class of Navigator race) is enough.
+    await Future<void>.delayed(Duration.zero);
+    if (!context.mounted) return;
+
+    // Business-picker step: tag the conversation-to-be with which specific
+    // business, within this agent's category, the customer is talking to —
+    // the server needs this to support live human handoff later. The
+    // agent's name doubles as its category (see new_request_sheet.dart).
+    final category =
+        (detail['name'] as String?) ?? (agentSummary['name'] as String?);
+    String? businessId;
+    if (category != null && category.isNotEmpty) {
+      final picked = await showBusinessPickerSheet(context, category: category);
+      if (picked == null) return; // sheet dismissed — treat as cancelling
+      businessId = picked['id'] as String?;
+    }
+
+    if (!context.mounted) return;
+    Navigator.of(context).pushNamed(AppRoutes.agentThread,
+        arguments: AgentThreadArgs(agent: detail, businessId: businessId));
   }
 
   static Future<void> openExisting(
     BuildContext context, {
     required String conversationId,
     required String agentId,
+    String? businessId,
   }) async {
     showDialog<void>(
       context: context,
@@ -129,12 +181,17 @@ class AgentChatView extends StatefulWidget {
       final messages = results[1] as List<Map<String, dynamic>>;
       if (!context.mounted) return;
       Navigator.of(context).pop();
+      // Same Navigator race as AgentChatView.open above — let the pop settle
+      // before pushing the next route.
+      await Future<void>.delayed(Duration.zero);
+      if (!context.mounted) return;
       Navigator.of(context).pushNamed(
         AppRoutes.agentThread,
         arguments: AgentThreadArgs(
             agent: agent,
             conversationId: conversationId,
-            initialMessages: messages),
+            initialMessages: messages,
+            businessId: businessId),
       );
     } catch (e, st) {
       AppLogger.e(
@@ -169,6 +226,13 @@ class _AgentChatViewState extends State<AgentChatView> {
   bool _pickingAttachments = false;
   List<String> _suggestedReplies = [];
 
+  // Persistent conversation-events subscription (live handoff) — separate
+  // from the per-turn stream opened inside _send(). Null until a real
+  // conversationId exists (a brand-new conversation only gets one once the
+  // first message is acked).
+  StreamSubscription<Map<String, dynamic>>? _eventsSub;
+  bool _teamMemberActive = false;
+
   @override
   void initState() {
     super.initState();
@@ -188,12 +252,24 @@ class _AgentChatViewState extends State<AgentChatView> {
             : (m['text'] as String? ?? '');
         final createdAt = DateTime.tryParse(m['createdAt'] as String? ?? '') ??
             DateTime.now();
-        _messages
-            .add(_Msg(isMe: isMe, text: text, time: _formatTime(createdAt)));
+        _messages.add(_Msg(
+          isMe: isMe,
+          text: text,
+          time: _formatTime(createdAt),
+          messageId: m['messageId'] as String?,
+        ));
       }
       _parentMessageId =
           raw.last['messageId'] as String? ?? _rootParentMessageId;
       _hydrateHistoryAttachments(raw);
+    }
+    if (_conversationId != null) {
+      _subscribeToEvents(_conversationId!);
+      // Opening this screen with the full history already loaded is exactly what "seen"
+      // means — mirrors AI_DOUBLE_BUSINESS's _markSeen. The chat list re-reads this the
+      // next time it loads (didPopNext already reloads it on every return here).
+      unawaited(SessionStorage()
+          .saveLastSeenCount(_conversationId!, _messages.length));
     }
   }
 
@@ -239,6 +315,9 @@ class _AgentChatViewState extends State<AgentChatView> {
           isMe: old.isMe,
           text: old.text,
           time: old.time,
+          messageId: old.messageId,
+          isBusiness: old.isBusiness,
+          senderName: old.senderName,
           attachments: attachments,
         );
       });
@@ -249,7 +328,72 @@ class _AgentChatViewState extends State<AgentChatView> {
   void dispose() {
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
+    _eventsSub?.cancel();
     super.dispose();
+  }
+
+  void _subscribeToEvents(String conversationId) {
+    if (_eventsSub != null) return;
+    AppLogger.i('AgentChatView',
+        'subscribing to conversation events for $conversationId');
+    _eventsSub =
+        LibreChatService.streamConversationEvents(conversationId).listen(
+      _handleConvoEvent,
+      onError: (e, st) => AppLogger.e(
+          'AgentChatView', 'streamConversationEvents failed', e, st),
+    );
+  }
+
+  void _handleConvoEvent(Map<String, dynamic> event) {
+    final type = event['type'] as String?;
+    if (type == 'message.created') {
+      final message = event['message'] as Map<String, dynamic>?;
+      if (message == null) return;
+      final id = message['messageId'] as String?;
+      // Dedupe against anything this screen already rendered — our own
+      // sent messages and the AI's streamed reply both echo back here.
+      if (id != null && _messages.any((m) => m.messageId == id)) return;
+      // Agent replies are stored with `text` as an empty string (not null) and their
+      // real body nested under `content` instead — fall back to that before giving up.
+      final rawText = message['text'] as String?;
+      final content = message['content'] as List?;
+      final extractedText = (content != null && content.isNotEmpty)
+          ? content
+              .whereType<Map>()
+              .where((c) => c['type'] == 'text')
+              .map((c) => c['text']?.toString() ?? '')
+              .join('\n\n')
+          : null;
+      final text = (rawText != null && rawText.isNotEmpty)
+          ? rawText
+          : (extractedText ?? '');
+      if (text.isEmpty) return;
+      final isBusiness = message['sender'] == 'Business';
+      final createdAt =
+          DateTime.tryParse(message['createdAt'] as String? ?? '') ??
+              DateTime.now();
+      if (!mounted) return;
+      setState(() {
+        _messages.add(_Msg(
+          isMe: message['isCreatedByUser'] == true,
+          text: text,
+          time: _formatTime(createdAt),
+          messageId: id,
+          isBusiness: isBusiness,
+          senderName: message['senderName'] as String?,
+        ));
+      });
+      _parentMessageId = id ?? _parentMessageId;
+      _scrollToBottom();
+      // Screen is open right now, so a message arriving live counts as seen immediately.
+      if (_conversationId != null) {
+        unawaited(SessionStorage()
+            .saveLastSeenCount(_conversationId!, _messages.length));
+      }
+    } else if (type == 'agent-mode.changed') {
+      if (!mounted) return;
+      setState(() => _teamMemberActive = event['agentChatMode'] == false);
+    }
   }
 
   List<_Starter> get _starters {
@@ -430,6 +574,7 @@ class _AgentChatViewState extends State<AgentChatView> {
     final agentId = widget.agent['id'] as String?;
     if (agentId == null) return;
 
+    final userMessageId = _uuidV4();
     _inputCtrl.clear();
     setState(() {
       _sending = true;
@@ -439,6 +584,7 @@ class _AgentChatViewState extends State<AgentChatView> {
         isMe: true,
         text: text,
         time: _timeNow(),
+        messageId: userMessageId,
         attachments: attachments,
       ));
     });
@@ -448,7 +594,7 @@ class _AgentChatViewState extends State<AgentChatView> {
         _Msg(isMe: false, text: '', time: _timeNow(), isStreaming: true);
 
     AppLogger.i('AgentChatView',
-        'send agentId=$agentId conversationId=$_conversationId textLen=${text.length} attachments=${attachments.length}');
+        'send agentId=$agentId conversationId=$_conversationId businessId=${widget.businessId} textLen=${text.length} attachments=${attachments.length}');
 
     try {
       final uploadedFiles = <Map<String, dynamic>>[];
@@ -482,9 +628,11 @@ class _AgentChatViewState extends State<AgentChatView> {
       final ack = await LibreChatService.sendChatMessage(
         agentId: agentId,
         text: text,
-        messageId: _uuidV4(),
+        messageId: userMessageId,
         parentMessageId: _parentMessageId,
         conversationId: _conversationId,
+        businessId: widget.businessId,
+        senderName: context.read<AuthRepository>().currentUser?.name,
         files: uploadedFiles,
       );
       final streamId =
@@ -493,6 +641,7 @@ class _AgentChatViewState extends State<AgentChatView> {
       _conversationId = ack['conversationId'] as String? ?? streamId;
       AppLogger.i('AgentChatView',
           'sendChatMessage ack streamId=$streamId conversationId=$_conversationId');
+      _subscribeToEvents(_conversationId!);
 
       if (!mounted) return;
       setState(() => _messages.add(assistantMsg));
@@ -528,14 +677,16 @@ class _AgentChatViewState extends State<AgentChatView> {
               'stream final: deltas=$deltaCount hasError=${errorEntry != null} textLen=${fullText.length} messageId=${responseMessage?['messageId']}');
           setState(() {
             if (errorEntry != null) {
-              assistantMsg.text =
-                  errorEntry['error'] as String? ?? 'The agent returned an error.';
+              assistantMsg.text = errorEntry['error'] as String? ??
+                  'The agent returned an error.';
               assistantMsg.isError = true;
             } else {
-              assistantMsg.text = fullText.isEmpty ? assistantMsg.text : fullText;
+              assistantMsg.text =
+                  fullText.isEmpty ? assistantMsg.text : fullText;
             }
             assistantMsg.isStreaming = false;
           });
+          assistantMsg.messageId = responseMessage?['messageId'] as String?;
           _parentMessageId =
               responseMessage?['messageId'] as String? ?? _parentMessageId;
         }
@@ -612,9 +763,11 @@ class _AgentChatViewState extends State<AgentChatView> {
         decoration: BoxDecoration(
           color: m.isError
               ? const Color(0xFFD64545).withOpacity(0.12)
-              : m.isMe
-                  ? AppColors.appChatBubbleMineColor
-                  : AppColors.appChatBubbleOtherColor,
+              : m.isBusiness
+                  ? AppColors.appSecondaryColorDim
+                  : m.isMe
+                      ? AppColors.appChatBubbleMineColor
+                      : AppColors.appChatBubbleOtherColor,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(11),
             topRight: const Radius.circular(11),
@@ -623,11 +776,22 @@ class _AgentChatViewState extends State<AgentChatView> {
           ),
           border: m.isError
               ? Border.all(color: const Color(0xFFD64545).withOpacity(0.4))
-              : null,
+              : m.isBusiness
+                  ? Border.all(
+                      color: AppColors.appSecondaryColor.withOpacity(0.4))
+                  : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (m.isBusiness) ...[
+              Text((m.senderName ?? 'Team member').toUpperCase(),
+                  style: AppFonts.mono(
+                      size: 9,
+                      color: AppColors.appSecondaryColor,
+                      letterSpacing: 0.8)),
+              const SizedBox(height: 3),
+            ],
             if (m.attachments.isNotEmpty) ...[
               Wrap(
                 spacing: 6,
@@ -799,7 +963,29 @@ class _AgentChatViewState extends State<AgentChatView> {
                 ],
               ),
             ),
-
+            if (_teamMemberActive)
+              Container(
+                width: double.infinity,
+                color: AppColors.appSecondaryColorDim,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.support_agent,
+                        size: 15, color: AppColors.appSecondaryColor),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        'A team member has joined this conversation',
+                        style: AppFonts.body(
+                            size: 12,
+                            weight: FontWeight.w600,
+                            color: AppColors.appSecondaryColor),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Expanded(
               child: Container(
                 color: AppColors.appChatBackgroundColor,
@@ -851,7 +1037,6 @@ class _AgentChatViewState extends State<AgentChatView> {
                 ),
               ),
             ),
-
             if (starters.isNotEmpty && _messages.isEmpty)
               Container(
                 width: double.infinity,
@@ -924,7 +1109,6 @@ class _AgentChatViewState extends State<AgentChatView> {
                   }).toList(),
                 ),
               ),
-
             Container(
               padding: const EdgeInsets.all(8),
               color: AppColors.appSurfaceColor,
