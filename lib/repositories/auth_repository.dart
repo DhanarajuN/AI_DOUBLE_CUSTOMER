@@ -230,13 +230,13 @@ class AuthRepository extends ChangeNotifier {
   /// the same mechanism ongo-core's own resolveDefaultRole uses for the
   /// tenant-wide "Default Role" config, just keyed per-app instead of
   /// per-tenant. Then fetches the user's current record and echoes it back
-  /// with roleId and accountRole changed — PUT /api/v1/users/update/:id
-  /// (ongo-core's UserController#mapFieldsAndUpdateUser) overwrites
-  /// firstName/lastName/roleId/routerUrl/mobile/mobileCountryCode/data
-  /// unconditionally, even when absent from the request body, so a
-  /// roleId-only payload would blank those out — and would also leave the
-  /// denormalized accountRole (and the roleName string derived from it)
-  /// stale at the old role, confirmed against a real promoted user's record.
+  /// with roleId, accountRole, and roleName all changed — PUT
+  /// /api/v1/users/update/:id (ongo-core's UserController#mapFieldsAndUpdateUser)
+  /// overwrites firstName/lastName/roleId/routerUrl/mobile/mobileCountryCode/data
+  /// unconditionally, even when absent from the request body, so a roleId-only
+  /// payload would blank those out — and leaves the denormalized accountRole and
+  /// roleName stale at the old role if not also set explicitly. roleName follows
+  /// the "<RoleName>(<roleId>)" format used by every SSO-created user record.
   Future<void> _promoteConfiguredRole(String userId) async {
     final roleName =
         await _resolveConfiguredRoleName(ServerUrls.ssoCallbackScheme);
@@ -266,7 +266,8 @@ class AuthRepository extends ChangeNotifier {
     };
     final updated = Map<String, dynamic>.from(userResult)
       ..['roleId'] = roleId
-      ..['accountRole'] = accountRole;
+      ..['accountRole'] = accountRole
+      ..['roleName'] = '$roleName($roleId)';
     await _apiClient.put('/api/v1/users/update/$userId', body: updated);
     AppLogger.i('AuthRepository', 'Promoted user $userId to $roleName');
   }
