@@ -860,19 +860,21 @@ class _AgentChatViewState extends State<AgentChatView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (!m.isMe) ...[
-              Text(
-                  m.isBusiness
-                      ? (m.senderName ?? 'Team member').toUpperCase()
-                      : 'AI AGENT',
-                  style: AppFonts.mono(
-                      size: 9,
-                      color: m.isBusiness
-                          ? AppColors.appSecondaryColor
-                          : AppColors.appTextMutedColor,
-                      letterSpacing: 0.8)),
-              const SizedBox(height: 3),
-            ],
+            Text(
+                m.isMe
+                    ? 'YOU'
+                    : m.isBusiness
+                        ? (m.senderName ?? 'Team member').toUpperCase()
+                        : 'AI AGENT',
+                style: AppFonts.mono(
+                    size: 9,
+                    color: m.isMe
+                        ? AppColors.appPrimaryColor
+                        : m.isBusiness
+                            ? AppColors.appSecondaryColor
+                            : AppColors.appTextMutedColor,
+                    letterSpacing: 0.8)),
+            const SizedBox(height: 3),
             if (m.attachments.isNotEmpty) ...[
               Wrap(
                 spacing: 6,
