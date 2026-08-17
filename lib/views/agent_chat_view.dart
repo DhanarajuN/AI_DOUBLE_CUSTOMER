@@ -259,6 +259,8 @@ class _AgentChatViewState extends State<AgentChatView> {
           text: text,
           time: _formatTime(createdAt),
           messageId: m['messageId'] as String?,
+          isBusiness: m['sender'] == 'Business',
+          senderName: m['senderName'] as String?,
         ));
       }
       _parentMessageId =
@@ -789,15 +791,49 @@ class _AgentChatViewState extends State<AgentChatView> {
     );
   }
 
+  Widget _avatarFor(_Msg m) {
+    if (m.isMe) {
+      return Container(
+        width: 26,
+        height: 26,
+        decoration: BoxDecoration(
+            color: AppColors.appPrimaryColor.withOpacity(0.15),
+            shape: BoxShape.circle),
+        alignment: Alignment.center,
+        child: const Icon(Icons.person, size: 14, color: AppColors.appPrimaryColor),
+      );
+    }
+    if (m.isBusiness) {
+      final name = m.senderName?.trim() ?? '';
+      return Container(
+        width: 26,
+        height: 26,
+        decoration: BoxDecoration(
+            color: AppColors.appSecondaryColor, shape: BoxShape.circle),
+        alignment: Alignment.center,
+        child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'B',
+            style: AppFonts.body(
+                size: 11.5, weight: FontWeight.w700, color: Colors.white)),
+      );
+    }
+    return Container(
+      width: 26,
+      height: 26,
+      decoration: BoxDecoration(
+          gradient: AppColors.appPrimaryGradient, shape: BoxShape.circle),
+      alignment: Alignment.center,
+      child: const Icon(Icons.smart_toy_outlined, size: 13, color: Colors.white),
+    );
+  }
+
   Widget _messageBubble(_Msg m) {
     if (m.isStreaming && m.text.isEmpty) {
       return const TypingIndicator();
     }
-    return Align(
-      alignment: m.isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
+    final avatar = _avatarFor(m);
+    final bubble = Container(
         constraints:
-            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+            BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
         margin: const EdgeInsets.symmetric(vertical: 3),
         padding: const EdgeInsets.fromLTRB(11, 8, 11, 6),
         decoration: BoxDecoration(
@@ -824,11 +860,16 @@ class _AgentChatViewState extends State<AgentChatView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (m.isBusiness) ...[
-              Text((m.senderName ?? 'Team member').toUpperCase(),
+            if (!m.isMe) ...[
+              Text(
+                  m.isBusiness
+                      ? (m.senderName ?? 'Team member').toUpperCase()
+                      : 'AI AGENT',
                   style: AppFonts.mono(
                       size: 9,
-                      color: AppColors.appSecondaryColor,
+                      color: m.isBusiness
+                          ? AppColors.appSecondaryColor
+                          : AppColors.appTextMutedColor,
                       letterSpacing: 0.8)),
               const SizedBox(height: 3),
             ],
@@ -903,6 +944,16 @@ class _AgentChatViewState extends State<AgentChatView> {
             ),
           ],
         ),
+      );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment:
+            m.isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: m.isMe
+            ? [Flexible(child: bubble), const SizedBox(width: 6), avatar]
+            : [avatar, const SizedBox(width: 6), Flexible(child: bubble)],
       ),
     );
   }
