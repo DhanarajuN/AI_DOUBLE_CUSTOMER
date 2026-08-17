@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../repositories/auth_repository.dart';
 import '../routes/app_routes.dart';
 import '../services/app_logger.dart';
+import '../services/friendly_error.dart';
 import '../services/librechat_service.dart';
 import '../services/session_storage.dart';
 import '../theme/app_theme.dart';
@@ -120,7 +121,7 @@ class AgentChatView extends StatefulWidget {
       if (!context.mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open agent: $e')),
+        SnackBar(content: Text('Could not open this agent. ${friendlyError(e)}')),
       );
       return;
     }
@@ -199,7 +200,7 @@ class AgentChatView extends StatefulWidget {
       if (!context.mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open chat: $e')),
+        SnackBar(content: Text('Could not open this chat. ${friendlyError(e)}')),
       );
     }
   }
@@ -231,6 +232,7 @@ class _AgentChatViewState extends State<AgentChatView> {
   // conversationId exists (a brand-new conversation only gets one once the
   // first message is acked).
   StreamSubscription<Map<String, dynamic>>? _eventsSub;
+  Timer? _eventsReconnectTimer;
   bool _teamMemberActive = false;
 
   @override
@@ -329,6 +331,7 @@ class _AgentChatViewState extends State<AgentChatView> {
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     _eventsSub?.cancel();
+    _eventsReconnectTimer?.cancel();
     super.dispose();
   }
 
@@ -336,12 +339,35 @@ class _AgentChatViewState extends State<AgentChatView> {
     if (_eventsSub != null) return;
     AppLogger.i('AgentChatView',
         'subscribing to conversation events for $conversationId');
+    // This stream is how a business's live human-handoff messages arrive —
+    // it previously had no reconnect handling at all, so any drop (network
+    // blip, backend redeploy) silently and permanently stopped live messages
+    // from reaching this screen, with no error shown and nothing to prompt a
+    // retry. Mirrors AI_DOUBLE_BUSINESS's own conversation-events reconnect.
     _eventsSub =
         LibreChatService.streamConversationEvents(conversationId).listen(
       _handleConvoEvent,
-      onError: (e, st) => AppLogger.e(
-          'AgentChatView', 'streamConversationEvents failed', e, st),
+      onError: (e, st) {
+        AppLogger.e(
+            'AgentChatView', 'streamConversationEvents failed, will retry', e, st);
+        _reconnectEventsSoon(conversationId);
+      },
+      onDone: () {
+        AppLogger.w('AgentChatView',
+            'streamConversationEvents closed, will retry');
+        _reconnectEventsSoon(conversationId);
+      },
+      cancelOnError: true,
     );
+  }
+
+  void _reconnectEventsSoon(String conversationId) {
+    _eventsSub = null;
+    _eventsReconnectTimer?.cancel();
+    _eventsReconnectTimer = Timer(const Duration(seconds: 5), () {
+      if (!mounted || conversationId != _conversationId) return;
+      _subscribeToEvents(conversationId);
+    });
   }
 
   void _handleConvoEvent(Map<String, dynamic> event) {
@@ -350,9 +376,24 @@ class _AgentChatViewState extends State<AgentChatView> {
       final message = event['message'] as Map<String, dynamic>?;
       if (message == null) return;
       final id = message['messageId'] as String?;
+      final isBusiness = message['sender'] == 'Business';
+      final isCreatedByUser = message['isCreatedByUser'] == true;
       // Dedupe against anything this screen already rendered — our own
       // sent messages and the AI's streamed reply both echo back here.
       if (id != null && _messages.any((m) => m.messageId == id)) return;
+      // The AI's own reply to a message this screen is actively streaming
+      // arrives here too, and server-side persistence (which triggers this
+      // event) can race ahead of the per-turn stream finishing client-side —
+      // the streaming bubble's messageId isn't assigned until its own
+      // stream's `final` event (see _send below), so the id check above can
+      // miss it and this would otherwise render as a second copy of the same
+      // reply. Skip it here; the streaming bubble already shows it and will
+      // carry the same id once its own stream completes.
+      if (!isCreatedByUser &&
+          !isBusiness &&
+          _messages.any((m) => !m.isMe && !m.isBusiness && m.isStreaming)) {
+        return;
+      }
       // Agent replies are stored with `text` as an empty string (not null) and their
       // real body nested under `content` instead — fall back to that before giving up.
       final rawText = message['text'] as String?;
@@ -368,7 +409,6 @@ class _AgentChatViewState extends State<AgentChatView> {
           ? rawText
           : (extractedText ?? '');
       if (text.isEmpty) return;
-      final isBusiness = message['sender'] == 'Business';
       final createdAt =
           DateTime.tryParse(message['createdAt'] as String? ?? '') ??
               DateTime.now();
@@ -710,7 +750,7 @@ class _AgentChatViewState extends State<AgentChatView> {
       setState(() {
         assistantMsg.isStreaming = false;
         if (assistantMsg.text.isEmpty) {
-          assistantMsg.text = 'Something went wrong: $e';
+          assistantMsg.text = friendlyError(e);
           assistantMsg.isError = true;
         }
         if (!_messages.contains(assistantMsg)) _messages.add(assistantMsg);

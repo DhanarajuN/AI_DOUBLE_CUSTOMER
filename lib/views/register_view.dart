@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/app_logger.dart';
+import '../services/friendly_error.dart';
 import '../services/registration_service.dart';
 import '../theme/app_theme.dart';
 
@@ -103,7 +104,7 @@ class _RegisterViewState extends State<RegisterView> {
       if (!mounted) return;
       setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not submit: $e'), behavior: SnackBarBehavior.floating),
+        SnackBar(content: Text('Could not submit. ${friendlyError(e)}'), behavior: SnackBarBehavior.floating),
       );
     }
   }

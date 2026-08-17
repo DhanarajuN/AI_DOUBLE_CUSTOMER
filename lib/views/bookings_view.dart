@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_client.dart';
 import '../services/app_logger.dart';
+import '../services/friendly_error.dart';
 import '../services/session_storage.dart';
 import '../constants/server_urls.dart';
 import '../theme/app_theme.dart';
@@ -179,7 +180,7 @@ class _BookingsViewState extends State<BookingsView> {
       AppLogger.e('BookingsView', 'fetchBookings failed', e, st);
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = friendlyError(e);
         _loading = false;
       });
     }
@@ -324,7 +325,7 @@ class _BookingsViewState extends State<BookingsView> {
       AppLogger.e('BookingsView', 'updateWorkflowStatus(${booking.id}) failed', e, st);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not cancel booking: $e'), behavior: SnackBarBehavior.floating),
+        SnackBar(content: Text('Could not cancel booking. ${friendlyError(e)}'), behavior: SnackBarBehavior.floating),
       );
     }
   }

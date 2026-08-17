@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../repositories/auth_repository.dart';
 import '../routes/app_routes.dart';
 import '../services/app_logger.dart';
+import '../services/friendly_error.dart';
 import '../services/librechat_service.dart';
 import '../services/session_storage.dart';
 import '../theme/app_theme.dart';
@@ -82,7 +83,7 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
       AppLogger.e('ChatListView', 'fetchConversations failed', e, st);
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = friendlyError(e);
         _loading = false;
       });
     }
