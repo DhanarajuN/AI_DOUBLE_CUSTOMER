@@ -76,11 +76,13 @@ class AgentThreadArgs {
   final String? conversationId;
   final List<Map<String, dynamic>>? initialMessages;
   final String? businessId;
+  final bool initialAgentChatMode;
   const AgentThreadArgs(
       {required this.agent,
       this.conversationId,
       this.initialMessages,
-      this.businessId});
+      this.businessId,
+      this.initialAgentChatMode = true});
 }
 
 class AgentChatView extends StatefulWidget {
@@ -88,12 +90,14 @@ class AgentChatView extends StatefulWidget {
   final String? initialConversationId;
   final List<Map<String, dynamic>>? initialMessages;
   final String? businessId;
+  final bool initialAgentChatMode;
   const AgentChatView(
       {super.key,
       required this.agent,
       this.initialConversationId,
       this.initialMessages,
-      this.businessId});
+      this.businessId,
+      this.initialAgentChatMode = true});
 
   static Future<void> open(
       BuildContext context, Map<String, dynamic> agentSummary) async {
@@ -159,6 +163,7 @@ class AgentChatView extends StatefulWidget {
     required String conversationId,
     required String agentId,
     String? businessId,
+    bool initialAgentChatMode = true,
   }) async {
     showDialog<void>(
       context: context,
@@ -192,7 +197,8 @@ class AgentChatView extends StatefulWidget {
             agent: agent,
             conversationId: conversationId,
             initialMessages: messages,
-            businessId: businessId),
+            businessId: businessId,
+            initialAgentChatMode: initialAgentChatMode),
       );
     } catch (e, st) {
       AppLogger.e(
@@ -233,7 +239,7 @@ class _AgentChatViewState extends State<AgentChatView> {
   // first message is acked).
   StreamSubscription<Map<String, dynamic>>? _eventsSub;
   Timer? _eventsReconnectTimer;
-  bool _teamMemberActive = false;
+  late bool _teamMemberActive = !widget.initialAgentChatMode;
 
   @override
   void initState() {
@@ -684,6 +690,15 @@ class _AgentChatViewState extends State<AgentChatView> {
       AppLogger.i('AgentChatView',
           'sendChatMessage ack streamId=$streamId conversationId=$_conversationId');
       _subscribeToEvents(_conversationId!);
+
+      // A team member has taken over — the backend never starts an AI turn for
+      // this message, so there's no stream to read (it 404s if we try). The
+      // business's own reply arrives later via the live events subscription above.
+      if (_teamMemberActive) {
+        AppLogger.i('AgentChatView',
+            'skipping AI stream, team member is handling this conversation');
+        return;
+      }
 
       if (!mounted) return;
       setState(() => _messages.add(assistantMsg));

@@ -253,7 +253,8 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
           : () => AgentChatView.openExisting(context,
               conversationId: conversationId,
               agentId: agentId,
-              businessId: businessId),
+              businessId: businessId,
+              initialAgentChatMode: agentChatMode),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
         child: Row(
