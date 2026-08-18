@@ -57,6 +57,7 @@ class AppRoutes {
             initialConversationId: args.conversationId,
             initialMessages: args.initialMessages,
             businessId: args.businessId,
+            initialAgentChatMode: args.initialAgentChatMode,
           ),
           settings: settings,
         );

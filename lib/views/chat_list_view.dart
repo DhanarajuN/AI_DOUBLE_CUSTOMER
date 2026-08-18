@@ -245,6 +245,7 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
     // (tagged when the chat was first created) skip the business-picker
     // step entirely — see AgentChatView.openExisting.
     final businessId = convo['businessId'] as String?;
+    final agentChatMode = convo['agentChatMode'] as bool? ?? true;
     final unread = _unreadCountFor(conversationId);
     return InkWell(
       onTap: (conversationId == null || agentId == null)
@@ -252,7 +253,8 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
           : () => AgentChatView.openExisting(context,
               conversationId: conversationId,
               agentId: agentId,
-              businessId: businessId),
+              businessId: businessId,
+              initialAgentChatMode: agentChatMode),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
         child: Row(
@@ -282,12 +284,28 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style:
-                            AppFonts.body(size: 15.5, weight: FontWeight.w600),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppFonts.body(
+                                size: 15.5, weight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            agentChatMode
+                                ? 'AI replying'
+                                : 'A team member is replying',
+                            style: AppFonts.body(
+                                size: 11,
+                                color: agentChatMode
+                                    ? AppColors.appTextMutedColor
+                                    : AppColors.appSecondaryColor),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: 8),
