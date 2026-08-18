@@ -24,11 +24,14 @@ class BusinessService {
   // "Healthcare"/"Health Insurance". Mirrors the portal's own AGENT_CATEGORY
   // map (workbench.ts) so both apps resolve the same agent to the same
   // category. Any agent name not listed here is assumed to already match its
-  // category value verbatim (true for "Education", "Home Services", and
-  // "Medical Aesthetics" today).
+  // category value verbatim (true for "Education" and "Home Services" today).
+  // Customer-facing agents are now suffixed "Customer"/"Customer - Voice" to
+  // sit alongside their "Business"/"Business - Voice" counterparts, so their
+  // display name no longer matches the category verbatim either.
   static const Map<String, String> _agentNameToCategory = {
     'Aidouble Insurance': 'Health Insurance',
     'Health Care': 'Healthcare',
+    'Medical Aesthetics Customer': 'Medical Aesthetics',
   };
 
   static Future<Map<String, String>> _headers() async {

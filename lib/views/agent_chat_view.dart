@@ -681,11 +681,18 @@ class _AgentChatViewState extends State<AgentChatView> {
       _conversationId = ack['conversationId'] as String? ?? streamId;
       AppLogger.i('AgentChatView',
           'sendChatMessage ack streamId=$streamId conversationId=$_conversationId');
-      _subscribeToEvents(_conversationId!);
 
+      // The streaming placeholder must be in _messages BEFORE the persistent
+      // events stream is subscribed to, not after — otherwise there's a real
+      // window where the AI's reply arrives over that stream (server-side
+      // persistence, which triggers it, doesn't wait for this client's own
+      // per-turn stream) before _handleConvoEvent's isStreaming-based
+      // suppression has anything to find, so it renders once from the event
+      // and again from this screen's own streaming bubble once it finishes.
       if (!mounted) return;
       setState(() => _messages.add(assistantMsg));
       _scrollToBottom();
+      _subscribeToEvents(_conversationId!);
 
       var deltaCount = 0;
       await for (final event in LibreChatService.streamChat(streamId)) {
