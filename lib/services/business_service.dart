@@ -44,24 +44,37 @@ class BusinessService {
     };
   }
 
+  /// The real, structured category label for a Business record — the raw
+  /// field carries the reference id alongside the name
+  /// ("Medical Aesthetics(6a70ac4f2c869b0bed964af7)"), so prefer the
+  /// resolved _ref.label when present. Mirrors the portal's own categoryOf().
+  static String _categoryOf(Map<String, dynamic> business) {
+    final data = business['data'] as Map<String, dynamic>? ?? const {};
+    final ref = data['Business Category_ref'] as Map<String, dynamic>?;
+    final label = (ref?['label'] as String?)?.trim();
+    if (label != null && label.isNotEmpty) return label;
+    final raw = (data['Business Category'] as String? ?? '').trim();
+    return raw.replaceAll(RegExp(r'\s*\([^)]*\)\s*$'), '').trim();
+  }
+
   /// [category] is matched against the "Business Category" field — the
   /// picked agent's name (e.g. "Healthcare", "Insurance").
+  ///
+  /// Fetches the whole (small) Business list with no server-side category
+  /// filter and matches client-side instead — "contains" on Business
+  /// Category (a Selection field) has proven unreliable server-side, the
+  /// exact same filter can return real matches one moment and nothing the
+  /// next with no data change in between. Confirmed live and is the root
+  /// cause of "no businesses" showing here even when real ones exist.
   static Future<List<Map<String, dynamic>>> fetchBusinesses(
       String category) async {
     final resolvedCategory = _agentNameToCategory[category] ?? category;
-    final filters = jsonEncode([
-      {
-        'fieldName': 'Business Category',
-        'condition': 'contains',
-        'value': resolvedCategory,
-      },
-    ]);
     final uri =
         Uri.parse('${ServerUrls.baseUrl}${ServerUrls.businessInstances}')
             .replace(queryParameters: {
       'pageNumber': '1',
       'pageSize': '200',
-      'filters': filters,
+      'filters': jsonEncode(const []),
     });
     final response = await http.get(uri, headers: await _headers());
     AppLogger.i('BusinessService',
@@ -73,6 +86,10 @@ class BusinessService {
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     final jobs = json['jobs'];
     if (jobs is! List) return [];
-    return jobs.cast<Map<String, dynamic>>();
+    final wanted = resolvedCategory.trim().toLowerCase();
+    return jobs
+        .cast<Map<String, dynamic>>()
+        .where((business) => _categoryOf(business).toLowerCase() == wanted)
+        .toList();
   }
 }
