@@ -10,6 +10,7 @@ import '../models/user.dart';
 import '../routes/app_routes.dart';
 import '../services/api_client.dart';
 import '../services/app_logger.dart';
+import '../services/push_notification_service.dart';
 import '../services/session_storage.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
@@ -64,6 +65,7 @@ class AuthRepository extends ChangeNotifier {
       _currentUser = session.user;
       _status = AuthStatus.authenticated;
       await fetchModuleConstants();
+      unawaited(PushNotificationService().registerForCurrentUser());
     }
     notifyListeners();
   }
@@ -215,6 +217,7 @@ class AuthRepository extends ChangeNotifier {
     _currentUser = user;
     _status = AuthStatus.authenticated;
     await fetchModuleConstants();
+    unawaited(PushNotificationService().registerForCurrentUser());
 
     // Every login from this app should carry whatever role is configured for
     // it, regardless of what the account's SSO-created default role was.
@@ -358,6 +361,7 @@ class AuthRepository extends ChangeNotifier {
 
   Future<void> logout() async {
     AppLogger.i('AuthRepository', 'logout');
+    await PushNotificationService().unregister();
     await _sessionStorage.clearSession();
     _apiClient.setAccessToken(null);
     _currentUser = null;

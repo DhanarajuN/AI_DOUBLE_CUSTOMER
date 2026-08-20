@@ -2,6 +2,11 @@ plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
+    // Reads android/app/google-services.json (not committed — drop the real
+    // file from the Firebase console app registration here) to configure FCM
+    // for this Android build. A missing file fails the build with a clear
+    // "File google-services.json is missing" error, not a silent no-op.
+    id "com.google.gms.google-services"
 }
 
 def localProperties = new Properties()

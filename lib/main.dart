@@ -9,6 +9,7 @@ import 'repositories/auth_repository.dart';
 import 'routes/app_routes.dart';
 import 'services/api_client.dart';
 import 'services/app_logger.dart';
+import 'services/push_notification_service.dart';
 import 'services/session_storage.dart';
 import 'theme/app_theme.dart';
 
@@ -16,6 +17,9 @@ void main() {
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
     await AppLogger.init();
+    // No-ops (logs and returns) until real Firebase config files are dropped
+    // in — every other feature in this app is unaffected either way.
+    unawaited(PushNotificationService().initialize());
 
     FlutterError.onError = (details) {
       AppLogger.e('FlutterError', details.exceptionAsString(), details.exception, details.stack);
