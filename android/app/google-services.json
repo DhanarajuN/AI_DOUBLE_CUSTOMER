@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "453370808950",
+    "project_id": "ai-double-3b497",
+    "storage_bucket": "ai-double-3b497.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:453370808950:android:cdb8606b75db07ff87ed57",
+        "android_client_info": {
+          "package_name": "com.gosure.aidouble.business"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALCF7QMApplC1WArdIoCwIyrme4G00Ycs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:453370808950:android:f180d3a4aa39340d87ed57",
+        "android_client_info": {
+          "package_name": "com.gosure.aidouble.customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALCF7QMApplC1WArdIoCwIyrme4G00Ycs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
