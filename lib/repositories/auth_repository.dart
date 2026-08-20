@@ -64,10 +64,57 @@ class AuthRepository extends ChangeNotifier {
       _apiClient.setAccessToken(session.accessToken);
       _currentUser = session.user;
       _status = AuthStatus.authenticated;
+      // A restored session is cached indefinitely in SharedPreferences —
+      // it survives app restarts and even updates, with nothing else ever
+      // re-validating it against the backend. If the cached name was ever
+      // wrong for any reason (confirmed live: a real account's cached name
+      // didn't match its actual backend profile, and every message it sent
+      // carried the wrong sender identity as a result), it would otherwise
+      // stay wrong forever — a restart doesn't help, since this exact
+      // stale cache is what gets reloaded every time. This re-fetches the
+      // real current name and self-corrects silently before anything else
+      // uses it, every time the app starts with an existing session.
+      await _refreshCurrentUserName();
       await fetchModuleConstants();
       unawaited(PushNotificationService().registerForCurrentUser());
     }
     notifyListeners();
+  }
+
+  /// Re-fetches this account's real current name from its own backend
+  /// profile and overwrites the cached one (both in memory and in
+  /// SharedPreferences) if it's out of date — silent, best-effort, never
+  /// blocks or fails the session restore it's called from. Mirrors the
+  /// exact "firstName lastName" construction the login endpoint itself
+  /// uses (see UserService.getUserLoginResponse server-side), so a
+  /// genuinely correct cached name is left untouched (no needless writes)
+  /// and only a real mismatch triggers a correction.
+  Future<void> _refreshCurrentUserName() async {
+    final user = _currentUser;
+    if (user == null) return;
+    try {
+      final result = await _apiClient.get('/api/v1/users/${user.id}');
+      if (result is! Map<String, dynamic>) return;
+      final firstName = (result['firstName'] as String?)?.trim() ?? '';
+      final lastName = (result['lastName'] as String?)?.trim() ?? '';
+      final realName = _cleanName('$firstName $lastName'.trim());
+      if (realName.isEmpty || realName == user.name) return;
+      AppLogger.i('AuthRepository',
+          'Cached name "${user.name}" did not match real profile "$realName" — correcting');
+      final corrected = User(
+          id: user.id,
+          name: realName,
+          username: user.username,
+          roleName: user.roleName);
+      _currentUser = corrected;
+      final session = await _sessionStorage.readSession();
+      await _sessionStorage.saveSession(
+          accessToken: session?.accessToken ?? '',
+          token: session?.token ?? '',
+          user: corrected);
+    } catch (e, st) {
+      AppLogger.w('AuthRepository', 'Could not refresh current user name: $e\n$st');
+    }
   }
 
   Future<void> fetchModuleConstants() async {
