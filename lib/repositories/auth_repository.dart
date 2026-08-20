@@ -310,6 +310,17 @@ class AuthRepository extends ChangeNotifier {
   /// payload would blank those out — and leaves the denormalized accountRole and
   /// roleName stale at the old role if not also set explicitly. roleName follows
   /// the "<RoleName>(<roleId>)" format used by every SSO-created user record.
+  // A fire-and-forget background task after every fresh login — same reason
+  // _refreshCurrentUserName uses raw http.get, not _apiClient: any of these
+  // three calls 401ing (a role/user lookup unrelated to the login that just
+  // genuinely succeeded) must never trigger _apiClient's onUnauthorized and
+  // force the user straight back out, moments after they signed in.
+  Map<String, String> _rawAuthHeaders() => {
+        'Content-Type': 'application/json',
+        if (_apiClient.accessToken != null)
+          'Authorization': 'Bearer ${_apiClient.accessToken}',
+      };
+
   Future<void> _promoteConfiguredRole(String userId) async {
     final roleName =
         await _resolveConfiguredRoleName(ServerUrls.ssoCallbackScheme);
@@ -319,13 +330,26 @@ class AuthRepository extends ChangeNotifier {
       );
     }
 
-    final roleResult = await _apiClient.get('/api/v1/roles/name/$roleName');
+    final roleRes = await http.get(
+        Uri.parse('${ServerUrls.baseUrl}/api/v1/roles/name/$roleName'),
+        headers: _rawAuthHeaders());
+    if (roleRes.statusCode < 200 || roleRes.statusCode >= 300) {
+      throw Exception(
+          'GET roles/name/$roleName failed (${roleRes.statusCode})');
+    }
+    final roleResult = jsonDecode(roleRes.body);
     final roleId = roleResult is Map ? roleResult['id'] as String? : null;
     if (roleId == null) {
       throw Exception('Role "$roleName" not found for this tenant');
     }
 
-    final userResult = await _apiClient.get('/api/v1/users/$userId');
+    final userRes = await http.get(
+        Uri.parse('${ServerUrls.baseUrl}/api/v1/users/$userId'),
+        headers: _rawAuthHeaders());
+    if (userRes.statusCode < 200 || userRes.statusCode >= 300) {
+      throw Exception('GET users/$userId failed (${userRes.statusCode})');
+    }
+    final userResult = jsonDecode(userRes.body);
     if (userResult is! Map<String, dynamic>) {
       throw Exception('Unexpected response fetching user $userId');
     }
@@ -341,7 +365,10 @@ class AuthRepository extends ChangeNotifier {
       ..['roleId'] = roleId
       ..['accountRole'] = accountRole
       ..['roleName'] = '$roleName($roleId)';
-    await _apiClient.put('/api/v1/users/update/$userId', body: updated);
+    await http.put(
+        Uri.parse('${ServerUrls.baseUrl}/api/v1/users/update/$userId'),
+        headers: _rawAuthHeaders(),
+        body: jsonEncode(updated));
     AppLogger.i('AuthRepository', 'Promoted user $userId to $roleName');
   }
 
