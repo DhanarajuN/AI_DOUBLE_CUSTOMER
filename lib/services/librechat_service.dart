@@ -31,6 +31,18 @@ MediaType _mediaTypeFor(String filename) {
 class LibreChatService {
   LibreChatService._();
 
+  /// Fired on a 401 from any real chat call below — sending a message,
+  /// loading conversations/messages, opening a stream. Unlike ApiClient's
+  /// background bootstrap calls, every call in this file is something the
+  /// user is actively waiting on, so a 401 here really does mean the
+  /// session is dead and AuthRepository should sign them out cleanly,
+  /// rather than the chat just failing silently with no way back to login.
+  static void Function()? onUnauthorized;
+
+  static void _checkAuth(int statusCode) {
+    if (statusCode == 401) onUnauthorized?.call();
+  }
+
   static const _browserUserAgent =
       'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36';
 
@@ -51,6 +63,7 @@ class LibreChatService {
         headers: await _headers());
     AppLogger.i('LibreChat',
         'fetchAgents -> ${response.statusCode}: ${redactedPreview(response.body)}');
+    _checkAuth(response.statusCode);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
           'Failed to load agents (${response.statusCode}): ${response.body}');
@@ -67,6 +80,7 @@ class LibreChatService {
         headers: await _headers());
     AppLogger.i('LibreChat',
         'fetchAgentById($id) -> ${response.statusCode}: ${redactedPreview(response.body)}');
+    _checkAuth(response.statusCode);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
           'Failed to load agent (${response.statusCode}): ${response.body}');
@@ -80,6 +94,7 @@ class LibreChatService {
         headers: await _headers());
     AppLogger.i('LibreChat',
         'fetchConversations -> ${response.statusCode}: ${redactedPreview(response.body)}');
+    _checkAuth(response.statusCode);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
           'Failed to load conversations (${response.statusCode}): ${response.body}');
@@ -104,6 +119,7 @@ class LibreChatService {
     );
     AppLogger.i('LibreChat',
         'fetchConversationCounts(${conversationIds.length} ids) -> ${response.statusCode}');
+    _checkAuth(response.statusCode);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       // Best-effort: a failed count fetch shouldn't block the chat list from showing.
       return {};
@@ -128,6 +144,7 @@ class LibreChatService {
       headers: await _headers(),
     );
     AppLogger.i('LibreChat', 'fetchConversation($conversationId) -> ${response.statusCode}');
+    _checkAuth(response.statusCode);
     if (response.statusCode == 404) return null;
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to load conversation (${response.statusCode}): ${response.body}');
@@ -144,6 +161,7 @@ class LibreChatService {
     );
     AppLogger.i('LibreChat',
         'fetchMessages($conversationId) -> ${response.statusCode}: ${redactedPreview(response.body)}');
+    _checkAuth(response.statusCode);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
           'Failed to load messages (${response.statusCode}): ${response.body}');
@@ -175,6 +193,7 @@ class LibreChatService {
     final response = await http.Response.fromStream(await request.send());
     AppLogger.i('LibreChat',
         'uploadToGosureAttachments($filename) -> ${response.statusCode}: ${redactedPreview(response.body)}');
+    _checkAuth(response.statusCode);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
           'Failed to upload attachment (${response.statusCode}): ${response.body}');
@@ -193,6 +212,7 @@ class LibreChatService {
     );
     AppLogger.i('LibreChat',
         'downloadAttachment($fileId) -> ${response.statusCode}: ${response.bodyBytes.length} bytes');
+    _checkAuth(response.statusCode);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to download attachment (${response.statusCode})');
     }
@@ -238,6 +258,7 @@ class LibreChatService {
     final response = await http.Response.fromStream(await request.send());
     AppLogger.i('LibreChat',
         'uploadAttachment($filename) -> ${response.statusCode}: ${redactedPreview(response.body)}');
+    _checkAuth(response.statusCode);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
           'Failed to upload attachment (${response.statusCode}): ${response.body}');
@@ -279,6 +300,7 @@ class LibreChatService {
     );
     AppLogger.i('LibreChat',
         'sendChatMessage -> ${response.statusCode}: ${redactedPreview(response.body)}');
+    _checkAuth(response.statusCode);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
           'Failed to send message (${response.statusCode}): ${response.body}');
@@ -306,6 +328,7 @@ class LibreChatService {
     );
     AppLogger.i('LibreChat',
         'suggestReplies -> ${response.statusCode}: ${redactedPreview(response.body)}');
+    _checkAuth(response.statusCode);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
           'Failed to fetch suggested replies (${response.statusCode}): ${response.body}');
@@ -355,6 +378,7 @@ class LibreChatService {
       try {
         final response = await send(c);
         AppLogger.i('LibreChat', '$label -> ${response.statusCode}');
+        _checkAuth(response.statusCode);
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
           controller.addError(

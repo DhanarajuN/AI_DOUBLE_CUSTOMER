@@ -7,6 +7,12 @@ class ServerUrls {
 
   static const String login = '/api/v1/users/login';
 
+  static const String users = '/api/v1/users';
+
+  static const String usersUpdate = '/api/v1/users/update';
+
+  static const String rolesByName = '/api/v1/roles/name';
+
   static const String moduleConstants = '/api/v1/module-constants';
 
   static const String ssoCallbackScheme = 'aidoublecustomer';

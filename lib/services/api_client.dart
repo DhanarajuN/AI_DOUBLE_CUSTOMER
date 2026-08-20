@@ -20,12 +20,21 @@ class ApiClient {
   final http.Client _client;
   String? _accessToken;
 
-  /// Fired whenever any call here gets a 401 — the token it was sent with is
-  /// no longer valid server-side (expired, revoked), something no client
-  /// code tracks proactively today. Left unhandled, this looked exactly like
-  /// "that resource doesn't exist" to callers, with no way to recover except
-  /// force-quitting and reopening the app. AuthRepository wires this to a
-  /// real sign-out + return-to-login so a stale session recovers on its own.
+  /// Fired on a 401 from any call NOT marked `silent` — the token it was
+  /// sent with is no longer valid server-side (expired, revoked), something
+  /// no client code tracks proactively today. Left unhandled, this looked
+  /// exactly like "that resource doesn't exist" to callers, with no way to
+  /// recover except force-quitting and reopening the app. AuthRepository
+  /// wires this to a real sign-out + return-to-login so a stale session
+  /// recovers on its own.
+  ///
+  /// Pass `silent: true` on a call that is a background/best-effort
+  /// side-fetch the user never sees waiting (a stale-cache refresh, a
+  /// fire-and-forget enrichment after login already succeeded) — a 401
+  /// there is not evidence the session is actually dead, and must not be
+  /// able to force a perfectly valid, just-signed-in user straight back out.
+  /// Every call that blocks a screen the user is actually looking at should
+  /// keep the default (unauthorized = really log them out).
   void Function()? onUnauthorized;
 
   ApiClient({required this.baseUrl, this.tenant, http.Client? client})
@@ -39,37 +48,40 @@ class ApiClient {
 
   String? get accessToken => _accessToken;
 
-  Future<dynamic> get(String path, {Map<String, String>? query}) {
+  Future<dynamic> get(String path,
+      {Map<String, String>? query, bool silent = false}) {
     return _request(
-        'GET', path, () => _client.get(_uri(path, query), headers: _headers()));
+        'GET', path, () => _client.get(_uri(path, query), headers: _headers()),
+        silent: silent);
   }
 
   Future<dynamic> post(String path,
-      {Object? body, Map<String, String>? query}) {
+      {Object? body, Map<String, String>? query, bool silent = false}) {
     return _request(
       'POST',
       path,
       () => _client.post(_uri(path, query),
           headers: _headers(), body: _encode(body)),
       body: body,
+      silent: silent,
     );
   }
 
-  Future<dynamic> put(String path, {Object? body}) {
+  Future<dynamic> put(String path, {Object? body, bool silent = false}) {
     return _request('PUT', path,
         () => _client.put(_uri(path), headers: _headers(), body: _encode(body)),
-        body: body);
+        body: body, silent: silent);
   }
 
   Future<dynamic> _request(
       String method, String path, Future<http.Response> Function() send,
-      {Object? body}) async {
+      {Object? body, bool silent = false}) async {
     final stopwatch = Stopwatch()..start();
     AppLogger.i('ApiClient',
         '$method $path${body == null ? '' : ' body=${jsonEncode(redactJson(body))}'}');
     try {
       final response = await send();
-      final result = _decode(response);
+      final result = _decode(response, silent: silent);
       AppLogger.i('ApiClient',
           '$method $path -> ${response.statusCode} in ${stopwatch.elapsedMilliseconds}ms');
       return result;
@@ -94,10 +106,10 @@ class ApiClient {
         if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
       };
 
-  dynamic _decode(http.Response response) {
+  dynamic _decode(http.Response response, {bool silent = false}) {
     final status = response.statusCode;
     final body = response.body.isEmpty ? null : jsonDecode(response.body);
-    if (status == 401) onUnauthorized?.call();
+    if (status == 401 && !silent) onUnauthorized?.call();
     if (status < 200 || status >= 300) {
       String? stringField(String key) =>
           body is Map && body[key] is String ? body[key] as String : null;
