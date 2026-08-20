@@ -89,11 +89,29 @@ class AuthRepository extends ChangeNotifier {
   /// uses (see UserService.getUserLoginResponse server-side), so a
   /// genuinely correct cached name is left untouched (no needless writes)
   /// and only a real mismatch triggers a correction.
+  ///
+  /// Deliberately a raw http.get, NOT _apiClient.get — this call runs on
+  /// every single app launch with an existing session, and _apiClient has
+  /// onUnauthorized wired to force a full logout on any 401. A best-effort
+  /// background refresh must never be able to log a perfectly valid session
+  /// out just because this one non-critical call failed for any reason
+  /// (a permissions quirk on this specific endpoint, a transient error,
+  /// anything) — that would make a "fix a stale cached name" safeguard
+  /// capable of silently breaking normal login, which defeats the point of
+  /// it being best-effort in the first place.
   Future<void> _refreshCurrentUserName() async {
     final user = _currentUser;
     if (user == null) return;
     try {
-      final result = await _apiClient.get('/api/v1/users/${user.id}');
+      final response = await http.get(
+        Uri.parse('${ServerUrls.baseUrl}/api/v1/users/${user.id}'),
+        headers: {
+          if (_apiClient.accessToken != null)
+            'Authorization': 'Bearer ${_apiClient.accessToken}',
+        },
+      );
+      if (response.statusCode < 200 || response.statusCode >= 300) return;
+      final result = jsonDecode(response.body);
       if (result is! Map<String, dynamic>) return;
       final firstName = (result['firstName'] as String?)?.trim() ?? '';
       final lastName = (result['lastName'] as String?)?.trim() ?? '';
