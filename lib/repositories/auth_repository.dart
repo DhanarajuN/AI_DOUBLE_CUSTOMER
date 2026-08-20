@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../constants/app_constants.dart';
 import '../constants/server_urls.dart';
 import '../models/user.dart';
+import '../routes/app_routes.dart';
 import '../services/api_client.dart';
 import '../services/app_logger.dart';
 import '../services/session_storage.dart';
@@ -31,7 +32,11 @@ class AuthRepository extends ChangeNotifier {
   final ApiClient _apiClient;
   final SessionStorage _sessionStorage;
 
-  AuthRepository(this._apiClient, this._sessionStorage);
+  AuthRepository(this._apiClient, this._sessionStorage) {
+    _apiClient.onUnauthorized = _handleSessionExpired;
+  }
+
+  bool _handlingExpiry = false;
 
   AuthStatus _status = AuthStatus.unknown;
   User? _currentUser;
@@ -359,5 +364,35 @@ class AuthRepository extends ChangeNotifier {
     _activeAgentNames = null;
     _status = AuthStatus.unauthenticated;
     notifyListeners();
+  }
+
+  /// Fired by ApiClient the moment any call 401s. The token this app has
+  /// been holding onto — since login, possibly hours ago — is no longer
+  /// valid server-side, and nothing here tracks that proactively. Previously
+  /// this surfaced only as a generic "please sign in again" toast on
+  /// whichever screen happened to make the failing call, with no actual
+  /// recovery: a currently-open chat screen's own in-memory businessId (see
+  /// agent_chat_view.dart) kept being sent alongside the now-invalid token
+  /// indefinitely. Clearing the session and returning to login — the same
+  /// way a fresh install starts — is the real fix; a bare retry would 401
+  /// again with the same token.
+  Future<void> _handleSessionExpired() async {
+    if (_handlingExpiry || _status == AuthStatus.unauthenticated) return;
+    _handlingExpiry = true;
+    AppLogger.w('AuthRepository',
+        'Session expired (401) — clearing stale session and returning to login');
+    try {
+      await _sessionStorage.clearSession();
+      _apiClient.setAccessToken(null);
+      _currentUser = null;
+      _activeAgentNames = null;
+      _status = AuthStatus.unauthenticated;
+      _errorMessage = 'Your session has expired. Please sign in again.';
+      notifyListeners();
+      navigatorKey.currentState
+          ?.pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
+    } finally {
+      _handlingExpiry = false;
+    }
   }
 }

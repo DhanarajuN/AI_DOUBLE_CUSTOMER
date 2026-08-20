@@ -20,6 +20,14 @@ class ApiClient {
   final http.Client _client;
   String? _accessToken;
 
+  /// Fired whenever any call here gets a 401 — the token it was sent with is
+  /// no longer valid server-side (expired, revoked), something no client
+  /// code tracks proactively today. Left unhandled, this looked exactly like
+  /// "that resource doesn't exist" to callers, with no way to recover except
+  /// force-quitting and reopening the app. AuthRepository wires this to a
+  /// real sign-out + return-to-login so a stale session recovers on its own.
+  void Function()? onUnauthorized;
+
   ApiClient({required this.baseUrl, this.tenant, http.Client? client})
       : _client = client ?? http.Client();
 
@@ -89,6 +97,7 @@ class ApiClient {
   dynamic _decode(http.Response response) {
     final status = response.statusCode;
     final body = response.body.isEmpty ? null : jsonDecode(response.body);
+    if (status == 401) onUnauthorized?.call();
     if (status < 200 || status >= 300) {
       String? stringField(String key) =>
           body is Map && body[key] is String ? body[key] as String : null;

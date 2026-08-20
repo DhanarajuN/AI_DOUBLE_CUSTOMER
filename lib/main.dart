@@ -111,6 +111,7 @@ class _AiDoubleAppState extends State<AiDoubleApp> with WidgetsBindingObserver {
         // Global theme/fonts (lib/theme/app_theme.dart) — change once here
         // and the whole app updates.
         theme: buildAppTheme(),
+        navigatorKey: navigatorKey,
         initialRoute: AppRoutes.splash,
         onGenerateRoute: AppRoutes.onGenerateRoute,
         navigatorObservers: [AppNavigatorObserver(), routeObserver],

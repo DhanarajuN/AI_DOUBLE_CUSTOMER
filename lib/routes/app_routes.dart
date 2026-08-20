@@ -7,6 +7,11 @@ import '../views/splash_view.dart';
 
 final routeObserver = RouteObserver<PageRoute<dynamic>>();
 
+/// Lets code with no BuildContext of its own (AuthRepository, reacting to an
+/// API 401 that can originate from any service call, anywhere) still drive
+/// navigation — e.g. back to /login once a session has expired.
+final navigatorKey = GlobalKey<NavigatorState>();
+
 class AppNavigatorObserver extends NavigatorObserver {
   String _label(Route<dynamic>? route) =>
       route?.settings.name ?? route?.runtimeType.toString() ?? 'unknown';
