@@ -114,6 +114,27 @@ class LibreChatService {
     return counts.map((key, value) => MapEntry(key, (value as num).toInt()));
   }
 
+  // Single-conversation lookup by id — used to deep-link a push notification
+  // tap straight into the specific conversation it was about. The stock
+  // fetchConversations() above has no by-id route; this rides the
+  // Gosure-scoped one instead (authorized here via convo.user ===
+  // req.user.id, same ownership check every other customer-facing Gosure
+  // route already uses — no businessId needed on this side).
+  static Future<Map<String, dynamic>?> fetchConversation(
+      String conversationId) async {
+    final response = await http.get(
+      Uri.parse(
+          '${ServerUrls.librechatURL}${ServerUrls.gosureConvoEvents}$conversationId'),
+      headers: await _headers(),
+    );
+    AppLogger.i('LibreChat', 'fetchConversation($conversationId) -> ${response.statusCode}');
+    if (response.statusCode == 404) return null;
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to load conversation (${response.statusCode}): ${response.body}');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   static Future<List<Map<String, dynamic>>> fetchMessages(
       String conversationId) async {
     final response = await http.get(

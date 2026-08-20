@@ -7,7 +7,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import '../constants/server_urls.dart';
 import '../routes/app_routes.dart';
+import '../views/agent_chat_view.dart';
 import 'app_logger.dart';
+import 'librechat_service.dart';
 import 'session_storage.dart';
 
 /// Must be a top-level (or static) function — the FCM plugin runs it in a
@@ -119,12 +121,33 @@ class PushNotificationService {
     }
   }
 
-  void _openFromData(Map<String, dynamic> data) {
-    // The specific conversationId is carried for a future enhancement (deep
-    // link straight into that thread); today this opens the chat list,
-    // which is already real navigable state and lets the customer reach any
-    // conversation in one more tap.
-    AppLogger.i('PushNotification', 'Opening from notification, conversationId=${data['conversationId']}');
+  Future<void> _openFromData(Map<String, dynamic> data) async {
+    final conversationId = data['conversationId'] as String?;
+    AppLogger.i('PushNotification', 'Opening from notification, conversationId=$conversationId');
+
+    final context = navigatorKey.currentContext;
+    if (conversationId != null && conversationId.isNotEmpty && context != null) {
+      try {
+        final convo = await LibreChatService.fetchConversation(conversationId);
+        final agentId = convo?['agent_id'] as String?;
+        if (convo != null && agentId != null && context.mounted) {
+          navigatorKey.currentState?.pushNamed(AppRoutes.chatList);
+          await AgentChatView.openExisting(
+            context,
+            conversationId: conversationId,
+            agentId: agentId,
+            businessId: convo['businessId'] as String?,
+            initialAgentChatMode: convo['agentChatMode'] as bool? ?? true,
+          );
+          return;
+        }
+      } catch (e, st) {
+        AppLogger.e('PushNotification', 'Could not fetch conversation for deep link', e, st);
+      }
+    }
+    // Fallback: couldn't resolve the specific conversation (not found, or
+    // the fetch failed) — still land somewhere real and useful rather than
+    // nowhere.
     navigatorKey.currentState?.pushNamed(AppRoutes.chatList);
   }
 
