@@ -30,6 +30,7 @@ class BusinessService {
   // display name no longer matches the category verbatim either.
   static const Map<String, String> _agentNameToCategory = {
     'Aidouble Insurance': 'Health Insurance',
+    'Insurance Customer': 'Insurance',
     'Health Care': 'Healthcare',
     'Medical Aesthetics Customer': 'Medical Aesthetics',
   };
