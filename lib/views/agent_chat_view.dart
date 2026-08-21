@@ -239,6 +239,7 @@ class _AgentChatViewState extends State<AgentChatView> {
   // first message is acked).
   StreamSubscription<Map<String, dynamic>>? _eventsSub;
   Timer? _eventsReconnectTimer;
+  int _eventsReconnectAttempts = 0;
   late bool _teamMemberActive = !widget.initialAgentChatMode;
 
   @override
@@ -354,7 +355,10 @@ class _AgentChatViewState extends State<AgentChatView> {
     // retry. Mirrors AI_DOUBLE_BUSINESS's own conversation-events reconnect.
     _eventsSub =
         LibreChatService.streamConversationEvents(conversationId).listen(
-      _handleConvoEvent,
+      (event) {
+        _eventsReconnectAttempts = 0;
+        _handleConvoEvent(event);
+      },
       onError: (e, st) {
         AppLogger.e(
             'AgentChatView', 'streamConversationEvents failed, will retry', e, st);
@@ -369,10 +373,21 @@ class _AgentChatViewState extends State<AgentChatView> {
     );
   }
 
+  // A brand-new conversation's id is minted and returned to the client
+  // before the backend has actually persisted the Conversation document —
+  // confirmed live: on average a few seconds pass between the send ack and
+  // the id becoming queryable, so this stream's very first connection
+  // attempt on a fresh conversation routinely 404s. A quick first retry
+  // closes that window without the user ever noticing; later attempts
+  // (a real network drop, a backend redeploy) back off to avoid hammering.
   void _reconnectEventsSoon(String conversationId) {
     _eventsSub = null;
     _eventsReconnectTimer?.cancel();
-    _eventsReconnectTimer = Timer(const Duration(seconds: 5), () {
+    _eventsReconnectAttempts++;
+    final delay = _eventsReconnectAttempts == 1
+        ? const Duration(seconds: 2)
+        : const Duration(seconds: 5);
+    _eventsReconnectTimer = Timer(delay, () {
       if (!mounted || conversationId != _conversationId) return;
       _subscribeToEvents(conversationId);
     });
