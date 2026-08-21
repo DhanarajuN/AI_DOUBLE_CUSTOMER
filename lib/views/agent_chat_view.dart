@@ -28,7 +28,7 @@ class _Msg {
   String text;
   final String time;
   bool isStreaming;
-  bool isError;
+  bool isError = false;
   // Server-assigned id — set on user messages up front (we generate it
   // before the request) and on assistant/business messages once known, so
   // events coming in over streamConversationEvents can be deduped against
@@ -48,7 +48,6 @@ class _Msg {
     required this.text,
     required this.time,
     this.isStreaming = false,
-    this.isError = false,
     this.messageId,
     this.isBusiness = false,
     this.senderName,
@@ -637,6 +636,7 @@ class _AgentChatViewState extends State<AgentChatView> {
     final agentId = widget.agent['id'] as String?;
     if (agentId == null) return;
 
+    final senderName = context.read<AuthRepository>().currentUser?.name;
     final userMessageId = _uuidV4();
     _inputCtrl.clear();
     setState(() {
@@ -695,7 +695,7 @@ class _AgentChatViewState extends State<AgentChatView> {
         parentMessageId: _parentMessageId,
         conversationId: _conversationId,
         businessId: widget.businessId,
-        senderName: context.read<AuthRepository>().currentUser?.name,
+        senderName: senderName,
         files: uploadedFiles,
       );
       final streamId =
@@ -729,6 +729,7 @@ class _AgentChatViewState extends State<AgentChatView> {
       _subscribeToEvents(_conversationId!);
 
       var deltaCount = 0;
+      var gotFinal = false;
       await for (final event in LibreChatService.streamChat(streamId)) {
         if (!mounted) return;
         if (event['event'] == 'on_message_delta') {
@@ -742,6 +743,7 @@ class _AgentChatViewState extends State<AgentChatView> {
             _scrollToBottom();
           }
         } else if (event['final'] == true) {
+          gotFinal = true;
           final responseMessage =
               event['responseMessage'] as Map<String, dynamic>?;
           final contentList = responseMessage?['content'] as List?;
@@ -771,6 +773,20 @@ class _AgentChatViewState extends State<AgentChatView> {
           _parentMessageId =
               responseMessage?['messageId'] as String? ?? _parentMessageId;
         }
+      }
+
+      if (!gotFinal) {
+        AppLogger.w('AgentChatView',
+            'streamChat($streamId) ended without a final event — reply may not be saved');
+        if (!mounted) return;
+        setState(() {
+          assistantMsg.isStreaming = false;
+          assistantMsg.isError = true;
+          assistantMsg.text = assistantMsg.text.isEmpty
+              ? 'Connection lost before the reply finished. Pull to refresh and try again.'
+              : '${assistantMsg.text}\n\n⚠️ Connection lost — this reply may not have been saved. Pull to refresh and try again.';
+        });
+        return;
       }
 
       try {
@@ -1141,7 +1157,7 @@ class _AgentChatViewState extends State<AgentChatView> {
                             padding: const EdgeInsets.fromLTRB(11, 8, 11, 6),
                             decoration: BoxDecoration(
                               color: AppColors.appChatBubbleOtherColor,
-                              borderRadius: BorderRadius.only(
+                              borderRadius: const BorderRadius.only(
                                 topLeft: Radius.circular(11),
                                 topRight: Radius.circular(11),
                                 bottomLeft: Radius.circular(3),

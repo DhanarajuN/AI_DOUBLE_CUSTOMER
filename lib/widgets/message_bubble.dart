@@ -51,7 +51,7 @@ class _TypingIndicatorState extends State<TypingIndicator> with SingleTickerProv
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
           color: AppColors.appChatBubbleOtherColor,
-          borderRadius: BorderRadius.only(
+          borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(11),
             topRight: Radius.circular(11),
             bottomLeft: Radius.circular(3),
