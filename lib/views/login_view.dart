@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../repositories/auth_repository.dart';
 import '../routes/app_routes.dart';
+import '../services/session_storage.dart';
 import '../theme/app_theme.dart';
 import '../viewmodels/login_view_model.dart';
 import 'register_view.dart';
@@ -31,6 +32,23 @@ class _LoginBodyState extends State<_LoginBody> {
   final _formKey = GlobalKey<FormState>();
   final _usernameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedCredentials();
+  }
+
+  Future<void> _loadRememberedCredentials() async {
+    final remembered = await context.read<SessionStorage>().readRememberedCredentials();
+    if (remembered == null || !mounted) return;
+    setState(() {
+      _usernameCtrl.text = remembered.username;
+      _passwordCtrl.text = remembered.password;
+      _rememberMe = true;
+    });
+  }
 
   @override
   void dispose() {
@@ -42,8 +60,17 @@ class _LoginBodyState extends State<_LoginBody> {
   Future<void> _submit(LoginViewModel vm) async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
-    final success = await vm.login(username: _usernameCtrl.text.trim(), password: _passwordCtrl.text);
+    final username = _usernameCtrl.text.trim();
+    final password = _passwordCtrl.text;
+    final success = await vm.login(username: username, password: password);
     if (success && mounted) {
+      final storage = context.read<SessionStorage>();
+      if (_rememberMe) {
+        await storage.saveRememberedCredentials(username: username, password: password);
+      } else {
+        await storage.clearRememberedCredentials();
+      }
+      if (!mounted) return;
       Navigator.of(context).pushReplacementNamed(AppRoutes.chatList);
     }
   }
@@ -151,7 +178,28 @@ class _LoginBodyState extends State<_LoginBody> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: Checkbox(
+                          value: _rememberMe,
+                          activeColor: AppColors.appPrimaryColor,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          onChanged: (value) => setState(() => _rememberMe = value ?? false),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => setState(() => _rememberMe = !_rememberMe),
+                        child: Text('Remember me', style: AppFonts.body(size: 13.5, color: AppColors.appTextSecondaryColor)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.appPrimaryColor,
