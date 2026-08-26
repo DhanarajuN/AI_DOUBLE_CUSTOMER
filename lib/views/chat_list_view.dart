@@ -9,6 +9,7 @@ import '../services/friendly_error.dart';
 import '../services/librechat_service.dart';
 import '../services/session_storage.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_logo.dart';
 import '../widgets/new_request_sheet.dart';
 import 'agent_chat_view.dart';
 import 'bookings_view.dart';
@@ -358,55 +359,15 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
       ),
       child: Row(
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              gradient: AppColors.appPrimaryGradient,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Stack(
-              children: [
-                const Center(
-                    child: Icon(Icons.forum_outlined,
-                        color: Colors.white, size: 18)),
-                Positioned(
-                  bottom: -2,
-                  right: -2,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: AppColors.appSecondaryColor,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: AppColors.appSurfaceColor, width: 2),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const AppLogoMark(size: 32),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                RichText(
-                  text: TextSpan(
-                    style: AppFonts.display(size: 19),
-                    children: [
-                      const TextSpan(text: 'AI '),
-                      TextSpan(
-                          text: 'Double',
-                          style: AppFonts.display(
-                                  size: 19,
-                                  weight: FontWeight.w400,
-                                  color: AppColors.appSecondaryColor)
-                              .copyWith(fontStyle: FontStyle.italic)),
-                    ],
-                  ),
-                ),
+                Text('AI Double',
+                    style: AppFonts.display(
+                        size: 19, weight: FontWeight.w800, color: AppColors.appBrandNavyColor)),
                 Text('CHATS', style: AppFonts.mono(size: 10, letterSpacing: 1)),
               ],
             ),

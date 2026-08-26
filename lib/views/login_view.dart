@@ -5,6 +5,7 @@ import '../routes/app_routes.dart';
 import '../services/session_storage.dart';
 import '../theme/app_theme.dart';
 import '../viewmodels/login_view_model.dart';
+import '../widgets/app_logo.dart';
 import 'register_view.dart';
 
 class LoginView extends StatelessWidget {
@@ -103,33 +104,11 @@ class _LoginBodyState extends State<_LoginBody> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Center(
-                    child: Container(
-                      width: 64,
-                      height: 64,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.appPrimaryGradient,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: const Icon(Icons.forum_outlined, color: Colors.white, size: 30),
-                    ),
-                  ),
+                  const Center(child: AppLogoMark(size: 64)),
                   const SizedBox(height: 20),
                   Center(
-                    child: RichText(
-                      text: TextSpan(
-                        style: AppFonts.display(size: 24),
-                        children: [
-                          const TextSpan(text: 'AI '),
-                          TextSpan(
-                            text: 'Double',
-                            style: AppFonts.display(size: 24, weight: FontWeight.w400, color: AppColors.appSecondaryColor)
-                                .copyWith(fontStyle: FontStyle.italic),
-                          ),
-                        ],
-                      ),
-                    ),
+                    child: Text('AI Double',
+                        style: AppFonts.display(size: 24, weight: FontWeight.w800, color: AppColors.appBrandNavyColor)),
                   ),
                   const SizedBox(height: 6),
                   Center(

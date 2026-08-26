@@ -7,6 +7,12 @@ bool get _isDark => WidgetsBinding.instance.platformDispatcher.platformBrightnes
 class AppColors {
   static const appInkColor = Color(0xFF050807);
 
+  // The exact navy used by the "AI Double" mark (assets/icon/icon.png,
+  // AppLogoMark) — kept literal here rather than sourced from a theme
+  // color, since the wordmark should always match the logo, not the
+  // (light/dark-aware) body text color.
+  static const appBrandNavyColor = Color(0xFF0C1B31);
+
   static Color get appBackgroundColor => _isDark ? const Color(0xFF0B141A) : const Color(0xFFF4F8F6);
   static Color get appChatBackgroundColor => _isDark ? const Color(0xFF0A1310) : const Color(0xFFEFF5F1);
   static Color get appSurfaceColor => _isDark ? const Color(0xFF111F1A) : const Color(0xFFFFFFFF);

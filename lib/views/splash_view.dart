@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../repositories/auth_repository.dart';
 import '../routes/app_routes.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_logo.dart';
 
 /// First screen shown on launch — restores any saved session while a
 /// minimum-duration brand splash is on screen, then routes to the chat
@@ -40,30 +41,9 @@ class _SplashViewState extends State<SplashView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 84,
-              height: 84,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                gradient: AppColors.appPrimaryGradient,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: const Icon(Icons.forum_outlined, color: Colors.white, size: 40),
-            ),
+            const AppLogoMark(size: 84),
             const SizedBox(height: 20),
-            RichText(
-              text: TextSpan(
-                style: AppFonts.display(size: 26),
-                children: [
-                  const TextSpan(text: 'AI '),
-                  TextSpan(
-                    text: 'Double',
-                    style: AppFonts.display(size: 26, weight: FontWeight.w400, color: AppColors.appSecondaryColor)
-                        .copyWith(fontStyle: FontStyle.italic),
-                  ),
-                ],
-              ),
-            ),
+            Text('AI Double', style: AppFonts.display(size: 26, weight: FontWeight.w800, color: AppColors.appBrandNavyColor)),
             const SizedBox(height: 28),
             const SizedBox(
               width: 22,
