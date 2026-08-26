@@ -12,6 +12,7 @@ import '../theme/app_theme.dart';
 import '../widgets/new_request_sheet.dart';
 import 'agent_chat_view.dart';
 import 'bookings_view.dart';
+import 'profile_view.dart';
 
 class ChatListView extends StatefulWidget {
   const ChatListView({super.key});
@@ -420,13 +421,19 @@ class _ChatListViewState extends State<ChatListView> with RouteAware {
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             onSelected: (value) {
-              if (value == 'bookings') {
+              if (value == 'profile') {
+                Navigator.of(context).push(ProfileView.route());
+              } else if (value == 'bookings') {
                 Navigator.of(context).push(BookingsView.route());
               } else if (value == 'logout') {
                 _confirmLogout(context);
               }
             },
             itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'profile',
+                child: Text('Profile', style: AppFonts.body(size: 13.5)),
+              ),
               PopupMenuItem(
                 value: 'bookings',
                 child: Text('Bookings', style: AppFonts.body(size: 13.5)),
