@@ -16,6 +16,8 @@ class SessionStorage {
   static const _nameKey = 'auth_name';
   static const _usernameKey = 'auth_username';
   static const _roleNameKey = 'auth_role_name';
+  static const _rememberedUsernameKey = 'remembered_username';
+  static const _rememberedPasswordKey = 'remembered_password';
 
   Future<String?> readAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -77,6 +79,27 @@ class SessionStorage {
     await prefs.remove(_nameKey);
     await prefs.remove(_usernameKey);
     await prefs.remove(_roleNameKey);
+  }
+
+  Future<void> saveRememberedCredentials(
+      {required String username, required String password}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_rememberedUsernameKey, username);
+    await prefs.setString(_rememberedPasswordKey, password);
+  }
+
+  Future<({String username, String password})?> readRememberedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final username = prefs.getString(_rememberedUsernameKey);
+    final password = prefs.getString(_rememberedPasswordKey);
+    if (username == null || password == null) return null;
+    return (username: username, password: password);
+  }
+
+  Future<void> clearRememberedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_rememberedUsernameKey);
+    await prefs.remove(_rememberedPasswordKey);
   }
 
   // How many messages this device had already seen in a conversation as of the last
