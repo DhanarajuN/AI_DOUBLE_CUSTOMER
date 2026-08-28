@@ -26,6 +26,11 @@ class AppColors {
 
   static Color get appSecondaryColor => _isDark ? const Color(0xFFE0B25C) : const Color(0xFFB07A2A);
   static Color get appSecondaryColorDim => _isDark ? const Color(0x24E0B25C) : const Color(0x24B07A2A);
+  // Broker's own distinct color for a live-handoff message — a violet, kept
+  // deliberately apart from appSecondaryColor's amber (business) and
+  // appPrimaryColor's blue (AI), so the three are never confused at a glance.
+  static Color get appTertiaryColor => _isDark ? const Color(0xFFB79CF0) : const Color(0xFF6D4FC7);
+  static Color get appTertiaryColorDim => _isDark ? const Color(0x24B79CF0) : const Color(0x246D4FC7);
   static Color get appSuccessColor => _isDark ? const Color(0xFF3DDC97) : const Color(0xFF1E9E63);
 static Color get appTextColor =>
     _isDark

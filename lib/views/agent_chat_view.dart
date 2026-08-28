@@ -38,9 +38,13 @@ class _Msg {
   // (sender == 'Business' on the conversation-events stream) — rendered in
   // a visually distinct bubble from both the customer's own and the AI's.
   bool isBusiness;
-  // The actual business's name (resolved server-side, see
-  // Gosure/businessLookup.js), shown instead of a generic "Team member"
-  // label when available.
+  // Same idea, for the broker this conversation got tagged with once the AI
+  // actually booked one (sender == 'Broker') — its own distinct bubble too,
+  // separate from both the business's and the AI's.
+  bool isBroker;
+  // The actual business's/broker's name (resolved server-side, see
+  // Gosure/businessLookup.js / brokerLookup.js), shown instead of a generic
+  // "Team member" label when available.
   String? senderName;
   final List<_PendingAttachment> attachments;
   _Msg({
@@ -51,6 +55,7 @@ class _Msg {
     this.isError = false,
     this.messageId,
     this.isBusiness = false,
+    this.isBroker = false,
     this.senderName,
     this.attachments = const [],
   });
@@ -267,6 +272,7 @@ class _AgentChatViewState extends State<AgentChatView> {
           time: _formatTime(createdAt),
           messageId: m['messageId'] as String?,
           isBusiness: m['sender'] == 'Business',
+          isBroker: m['sender'] == 'Broker',
           senderName: m['senderName'] as String?,
         ));
       }
@@ -328,6 +334,7 @@ class _AgentChatViewState extends State<AgentChatView> {
           time: old.time,
           messageId: old.messageId,
           isBusiness: old.isBusiness,
+          isBroker: old.isBroker,
           senderName: old.senderName,
           attachments: attachments,
         );
@@ -400,6 +407,7 @@ class _AgentChatViewState extends State<AgentChatView> {
       if (message == null) return;
       final id = message['messageId'] as String?;
       final isBusiness = message['sender'] == 'Business';
+      final isBroker = message['sender'] == 'Broker';
       final isCreatedByUser = message['isCreatedByUser'] == true;
       // Dedupe against anything this screen already rendered — our own
       // sent messages and the AI's streamed reply both echo back here.
@@ -411,10 +419,15 @@ class _AgentChatViewState extends State<AgentChatView> {
       // stream's `final` event (see _send below), so the id check above can
       // miss it and this would otherwise render as a second copy of the same
       // reply. Skip it here; the streaming bubble already shows it and will
-      // carry the same id once its own stream completes.
+      // carry the same id once its own stream completes. A business's or a
+      // broker's own direct message must never be caught by this — each is
+      // a genuinely distinct sender, never the AI's own echo, and would
+      // otherwise be silently dropped whenever an AI reply happens to be
+      // streaming at the same moment.
       if (!isCreatedByUser &&
           !isBusiness &&
-          _messages.any((m) => !m.isMe && !m.isBusiness && m.isStreaming)) {
+          !isBroker &&
+          _messages.any((m) => !m.isMe && !m.isBusiness && !m.isBroker && m.isStreaming)) {
         return;
       }
       // Agent replies are stored with `text` as an empty string (not null) and their
@@ -443,6 +456,7 @@ class _AgentChatViewState extends State<AgentChatView> {
           time: _formatTime(createdAt),
           messageId: id,
           isBusiness: isBusiness,
+          isBroker: isBroker,
           senderName: message['senderName'] as String?,
         ));
       });
@@ -842,17 +856,23 @@ class _AgentChatViewState extends State<AgentChatView> {
         child: const Icon(Icons.person, size: 14, color: AppColors.appPrimaryColor),
       );
     }
-    if (m.isBusiness) {
+    if (m.isBusiness || m.isBroker) {
       final name = m.senderName?.trim() ?? '';
       return Container(
         width: 26,
         height: 26,
         decoration: BoxDecoration(
-            color: AppColors.appSecondaryColor, shape: BoxShape.circle),
+            color: m.isBroker
+                ? AppColors.appTertiaryColor
+                : AppColors.appSecondaryColor,
+            shape: BoxShape.circle),
         alignment: Alignment.center,
-        child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'B',
-            style: AppFonts.body(
-                size: 11.5, weight: FontWeight.w700, color: Colors.white)),
+        child: name.isNotEmpty
+            ? Text(name[0].toUpperCase(),
+                style: AppFonts.body(
+                    size: 11.5, weight: FontWeight.w700, color: Colors.white))
+            : Icon(m.isBroker ? Icons.support_agent : Icons.person,
+                size: 13, color: Colors.white),
       );
     }
     return Container(
@@ -878,11 +898,13 @@ class _AgentChatViewState extends State<AgentChatView> {
         decoration: BoxDecoration(
           color: m.isError
               ? const Color(0xFFD64545).withOpacity(0.12)
-              : m.isBusiness
-                  ? AppColors.appSecondaryColorDim
-                  : m.isMe
-                      ? AppColors.appChatBubbleMineColor
-                      : AppColors.appChatBubbleOtherColor,
+              : m.isBroker
+                  ? AppColors.appTertiaryColorDim
+                  : m.isBusiness
+                      ? AppColors.appSecondaryColorDim
+                      : m.isMe
+                          ? AppColors.appChatBubbleMineColor
+                          : AppColors.appChatBubbleOtherColor,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(11),
             topRight: const Radius.circular(11),
@@ -891,10 +913,12 @@ class _AgentChatViewState extends State<AgentChatView> {
           ),
           border: m.isError
               ? Border.all(color: const Color(0xFFD64545).withOpacity(0.4))
-              : m.isBusiness
-                  ? Border.all(
-                      color: AppColors.appSecondaryColor.withOpacity(0.4))
-                  : null,
+              : m.isBroker
+                  ? Border.all(color: AppColors.appTertiaryColor.withOpacity(0.4))
+                  : m.isBusiness
+                      ? Border.all(
+                          color: AppColors.appSecondaryColor.withOpacity(0.4))
+                      : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -902,16 +926,20 @@ class _AgentChatViewState extends State<AgentChatView> {
             Text(
                 m.isMe
                     ? 'YOU'
-                    : m.isBusiness
-                        ? (m.senderName ?? 'Team member').toUpperCase()
-                        : 'AI AGENT',
+                    : m.isBroker
+                        ? (m.senderName ?? 'Broker').toUpperCase()
+                        : m.isBusiness
+                            ? (m.senderName ?? 'Team member').toUpperCase()
+                            : 'AI AGENT',
                 style: AppFonts.mono(
                     size: 9,
                     color: m.isMe
                         ? AppColors.appPrimaryColor
-                        : m.isBusiness
-                            ? AppColors.appSecondaryColor
-                            : AppColors.appTextMutedColor,
+                        : m.isBroker
+                            ? AppColors.appTertiaryColor
+                            : m.isBusiness
+                                ? AppColors.appSecondaryColor
+                                : AppColors.appTextMutedColor,
                     letterSpacing: 0.8)),
             const SizedBox(height: 3),
             if (m.attachments.isNotEmpty) ...[
