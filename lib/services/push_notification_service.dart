@@ -166,6 +166,26 @@ class PushNotificationService {
     }
   }
 
+  // Gosure routes on this backend expect X-Tenant-Id/X-User-Id/X-Gosure-Token,
+  // not a bearer-only header — mirrors LibrechatService's own header pattern
+  // (X-Gosure-Token is actually the session's access token). This service used
+  // to hand-roll its own headers with only Authorization: Bearer, which the
+  // backend's NO_AUTH bridge rejects outright with a 403 ("A valid X-Tenant-Id
+  // header is required") since it never even reaches real auth — confirmed
+  // live, this is exactly why push registration/unregistration were failing
+  // silently (caught, logged, swallowed) for every signed-in customer.
+  Future<Map<String, String>> _gosureHeaders() async {
+    final userId = await _sessionStorage.readUserId();
+    final token = await _sessionStorage.readAccessToken();
+    return {
+      'Content-Type': 'application/json',
+      'X-Tenant-Id': ServerUrls.tenant,
+      if (userId != null) 'X-User-Id': userId,
+      if (token != null) 'X-Gosure-Token': token,
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
   Future<void> _registerToken(String token) async {
     _lastKnownToken = token;
     final accessToken = await _sessionStorage.readAccessToken();
@@ -173,7 +193,7 @@ class PushNotificationService {
     try {
       final res = await http.post(
         Uri.parse('${ServerUrls.librechatURL}${ServerUrls.gosureConvoEvents}push/register'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $accessToken'},
+        headers: await _gosureHeaders(),
         body: jsonEncode({
           'token': token,
           'platform': kIsWeb ? 'web' : 'android',
@@ -196,7 +216,7 @@ class PushNotificationService {
     try {
       await http.post(
         Uri.parse('${ServerUrls.librechatURL}${ServerUrls.gosureConvoEvents}push/unregister'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $accessToken'},
+        headers: await _gosureHeaders(),
         body: jsonEncode({'token': token}),
       );
     } catch (e, st) {
