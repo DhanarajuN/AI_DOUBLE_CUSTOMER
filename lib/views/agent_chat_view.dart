@@ -530,6 +530,7 @@ class _AgentChatViewState extends State<AgentChatView> {
 
   void _openVoiceMode() {
     final name = widget.agent['name'] as String? ?? 'Assistant';
+    final agentId = widget.agent['id'] as String?;
     final avatar = widget.agent['avatar'] as Map<String, dynamic>?;
     final avatarIcon = avatar?['filepath'] == 'pi-sparkles'
         ? Icons.auto_awesome
@@ -538,6 +539,7 @@ class _AgentChatViewState extends State<AgentChatView> {
       builder: (_) => VoiceCallView(
         agentName: name,
         agentIcon: avatarIcon,
+        agentId: agentId,
         conversationId: _conversationId,
         businessId: widget.businessId,
       ),

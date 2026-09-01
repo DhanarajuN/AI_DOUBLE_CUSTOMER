@@ -8,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 enum LogLevel { info, warn, error }
 
-const _redactedKeys = {'password', 'token', 'accesstoken', 'idtoken', 'keypassword', 'storepassword', 'refreshtoken'};
+const _redactedKeys = {'password', 'token', 'accesstoken', 'idtoken', 'keypassword', 'storepassword', 'refreshtoken', 'gosuretoken'};
 
 /// Deep-copies [value], replacing any map value whose key looks like a
 /// secret (case-insensitive) with `***` — shared by every place that logs

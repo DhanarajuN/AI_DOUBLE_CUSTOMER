@@ -73,4 +73,14 @@ class ServerUrls {
   // handoff: message.created / agent-mode.changed) — distinct from
   // [librechatAgentChatStream], which is the per-turn generation stream.
   static const String gosureConvoEvents = '/api/gosure/convos/';
+
+  static const String livekitUrl = String.fromEnvironment(
+    'LIVEKIT_URL',
+    defaultValue: 'wss://ai-double-3daj2l7p.livekit.cloud',
+  );
+
+  static const String livekitHttpUrl = String.fromEnvironment(
+    'LIVEKIT_HTTP_URL',
+    defaultValue: 'https://ai-double-3daj2l7p.livekit.cloud',
+  );
 }

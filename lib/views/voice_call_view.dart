@@ -1,20 +1,63 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:provider/provider.dart';
+import '../constants/server_urls.dart';
+import '../repositories/auth_repository.dart';
+import '../services/api_client.dart';
+import '../services/app_logger.dart';
 import '../theme/app_theme.dart';
 
-// The agent's side of this is real: every agent transcript line is actually
-// spoken aloud through the device speaker via on-device TTS (flutter_tts) —
-// that's genuine audio output, not simulated. Everything else is still a
-// stand-in for LiveKit: the customer side has no real mic capture or STT
-// (the "customer" transcript lines are canned demo text), turn-taking is a
-// local timer rather than LiveKit's speaking/audio-level events, and the
-// speaker/earpiece toggle is visual only (flutter_tts has no portable
-// audio-route API). Nothing here touches LibreChat — this is a second,
-// independent entry point next to the existing text chat, not a replacement
-// for it.
+String _generateNonce() {
+  final timePart = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
+  final random = math.Random();
+  final randomPart =
+      List.generate(5, (_) => random.nextInt(36).toRadixString(36)).join();
+  return '$timePart$randomPart';
+}
+
+String _generateRoomName({
+  required String tenantId,
+  required String identity,
+  required String agentId,
+  required String nonce,
+}) {
+  final base = 'aidouble-$tenantId-$identity-$agentId';
+  final truncated = base.length > 100 ? base.substring(0, 100) : base;
+  return '$truncated-$nonce';
+}
+
+int _generateNowSeconds() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+const Map<String, String> _jwtHeader = {'alg': 'HS256', 'typ': 'JWT'};
+
+Map<String, dynamic> _generateClaims({
+  required String apiKey,
+  required String identity,
+  required String room,
+  required int now,
+  Map<String, dynamic> metadata = const {},
+}) {
+  return {
+    'iss': apiKey,
+    'sub': identity,
+    'name': identity,
+    'nbf': now - 10,
+    'exp': now + 60 * 60,
+    'metadata': jsonEncode(metadata),
+    'video': {
+      'room': room,
+      'roomJoin': true,
+      'canPublish': true,
+      'canSubscribe': true,
+      'canPublishData': true,
+    },
+  };
+}
+
 enum _AgentActivity { connecting, listening, speaking }
 
 class _TranscriptLine {
@@ -26,6 +69,7 @@ class _TranscriptLine {
 class VoiceCallView extends StatefulWidget {
   final String agentName;
   final IconData agentIcon;
+  final String? agentId;
   final String? conversationId;
   final String? businessId;
 
@@ -33,6 +77,7 @@ class VoiceCallView extends StatefulWidget {
     super.key,
     required this.agentName,
     required this.agentIcon,
+    this.agentId,
     this.conversationId,
     this.businessId,
   });
@@ -46,6 +91,10 @@ class _VoiceCallViewState extends State<VoiceCallView>
   late final AnimationController _pulseCtrl;
   final _scrollCtrl = ScrollController();
   final _tts = FlutterTts();
+  final _callNonce = _generateNonce();
+  late final String _room;
+  late final int _tokenIssuedAt;
+  late final Map<String, dynamic> _claims;
   Timer? _connectTimer;
   Timer? _durationTimer;
   Timer? _turnTimer;
@@ -58,9 +107,6 @@ class _VoiceCallViewState extends State<VoiceCallView>
 
   final _transcript = <_TranscriptLine>[];
 
-  // Placeholder exchange — one (customer, agent) pair added per tap on the
-  // orb, purely so the transcript UI has something to show while reviewing
-  // the layout. Real lines will arrive as LiveKit transcription events.
   static const _demoScript = [
     (
       customer: "I'd like to check my order status.",
@@ -83,11 +129,40 @@ class _VoiceCallViewState extends State<VoiceCallView>
       vsync: this,
       duration: const Duration(milliseconds: 1600),
     )..repeat();
+    final identity = context.read<AuthRepository>().currentUser?.id ?? 'unknown';
+    final apiClient = context.read<ApiClient>();
+    _room = _generateRoomName(
+      tenantId: ServerUrls.tenant,
+      identity: identity,
+      agentId: widget.agentId ?? 'unknown-agent',
+      nonce: _callNonce,
+    );
+    _tokenIssuedAt = _generateNowSeconds();
+    final metadata = <String, dynamic>{
+      'agentId': widget.agentId ?? '',
+      'conversationId': widget.conversationId ?? '',
+      'businessId': '',
+      'tenantId': ServerUrls.tenant,
+      'gosureUserId': identity,
+      'gosureToken': apiClient.accessToken ?? '',
+      'language': WidgetsBinding.instance.platformDispatcher.locale.languageCode,
+    };
+    _claims = _generateClaims(
+      apiKey: '',
+      identity: identity,
+      room: _room,
+      now: _tokenIssuedAt,
+      metadata: metadata,
+    );
+    final claimsForLog = {..._claims, 'metadata': redactJson(metadata)};
+    AppLogger.i('VoiceCallView', 'callNonce=$_callNonce');
+    AppLogger.i('VoiceCallView', 'room=$_room');
+    AppLogger.i('VoiceCallView', 'now=$_tokenIssuedAt header=$_jwtHeader');
+    AppLogger.i('VoiceCallView', 'claims=${jsonEncode(claimsForLog)}');
+    AppLogger.i('VoiceCallView',
+        'call $_callNonce started with agent "${widget.agentName}" (conversationId=${widget.conversationId}, businessId=${widget.businessId})');
     _initTts();
 
-    // Demo-only: simulate the connect handshake, then start a duration
-    // clock as if the call were live. Replace with the real LiveKit
-    // room.connect() / participant-connected callback.
     _connectTimer = Timer(const Duration(milliseconds: 1300), () {
       if (!mounted) return;
       const greeting = "Hi! I'm ";
@@ -129,6 +204,7 @@ class _VoiceCallViewState extends State<VoiceCallView>
 
   @override
   void dispose() {
+    AppLogger.i('VoiceCallView', 'call $_callNonce ended at ${_durationLabel()}');
     _pulseCtrl.dispose();
     _scrollCtrl.dispose();
     _tts.stop();
@@ -164,8 +240,6 @@ class _VoiceCallViewState extends State<VoiceCallView>
         _transcript.add(_TranscriptLine(isCustomer: false, text: turn.agent));
       });
       _scrollToEnd();
-      // _demoBusy/_activity revert back to listening via _onSpeechDone,
-      // once flutter_tts actually finishes speaking turn.agent.
       _speak(turn.agent);
     });
   }
@@ -296,9 +370,6 @@ class _VoiceCallViewState extends State<VoiceCallView>
 
   Widget _ring(int index, {required bool speaking, required bool connecting}) {
     if (connecting) return const SizedBox.shrink();
-    // Three rings staggered by phase so they pulse outward one after another
-    // rather than in lockstep — speaking pulses faster and brighter than the
-    // idle "listening" breathing effect.
     final speed = speaking ? 0.62 : 1.0;
     final phase = index / 3;
     final t = ((_pulseCtrl.value / speed) + phase) % 1.0;
