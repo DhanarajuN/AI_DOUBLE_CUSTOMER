@@ -16,6 +16,7 @@ import '../services/session_storage.dart';
 import '../theme/app_theme.dart';
 import '../widgets/business_picker_sheet.dart';
 import '../widgets/message_bubble.dart';
+import 'voice_call_view.dart';
 
 class _Starter {
   final String iconKey;
@@ -525,6 +526,22 @@ class _AgentChatViewState extends State<AgentChatView> {
       default:
         return Icons.bolt_outlined;
     }
+  }
+
+  void _openVoiceMode() {
+    final name = widget.agent['name'] as String? ?? 'Assistant';
+    final avatar = widget.agent['avatar'] as Map<String, dynamic>?;
+    final avatarIcon = avatar?['filepath'] == 'pi-sparkles'
+        ? Icons.auto_awesome
+        : Icons.smart_toy_outlined;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => VoiceCallView(
+        agentName: name,
+        agentIcon: avatarIcon,
+        conversationId: _conversationId,
+        businessId: widget.businessId,
+      ),
+    ));
   }
 
   void _notWiredYet(String what) {
@@ -1130,6 +1147,12 @@ class _AgentChatViewState extends State<AgentChatView> {
                                 size: 10, color: AppColors.appSuccessColor)),
                       ],
                     ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.graphic_eq_rounded,
+                        color: AppColors.appPrimaryColor),
+                    tooltip: 'Voice mode',
+                    onPressed: _openVoiceMode,
                   ),
                   IconButton(
                     icon: Icon(Icons.more_vert,

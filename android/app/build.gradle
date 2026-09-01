@@ -42,7 +42,8 @@ android {
 
     defaultConfig {
         applicationId = "com.gosure.aidouble.customer"
-        minSdk = flutter.minSdkVersion
+        // flutter_tts (voice mode) requires API 24+.
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = 4
         versionName = "1.0.3"
