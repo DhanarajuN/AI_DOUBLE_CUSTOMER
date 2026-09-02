@@ -542,6 +542,10 @@ class _AgentChatViewState extends State<AgentChatView> {
         agentId: agentId,
         conversationId: _conversationId,
         businessId: widget.businessId,
+        onConversationId: (id) {
+          _conversationId = id;
+          _subscribeToEvents(id);
+        },
       ),
     ));
   }

@@ -4,11 +4,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' show Helper;
+import 'package:livekit_client/livekit_client.dart';
 import 'package:provider/provider.dart';
 import '../constants/server_urls.dart';
 import '../repositories/auth_repository.dart';
 import '../services/api_client.dart';
 import '../services/app_logger.dart';
+import '../services/livekit_token_service.dart';
 import '../theme/app_theme.dart';
 
 String _generateNonce() {
@@ -58,12 +61,34 @@ Map<String, dynamic> _generateClaims({
   };
 }
 
-enum _AgentActivity { connecting, listening, speaking }
+String _base64UrlBytes(List<int> bytes) {
+  return base64Url.encode(bytes).replaceAll('=', '');
+}
+
+String _b64Url(String value) {
+  return _base64UrlBytes(utf8.encode(value));
+}
+
+String _generateSigningInput({
+  required Map<String, dynamic> header,
+  required Map<String, dynamic> claims,
+}) {
+  return '${_b64Url(jsonEncode(header))}.${_b64Url(jsonEncode(claims))}';
+}
+
+enum _VoiceState { idle, connecting, listening, thinking, speaking, error }
 
 class _TranscriptLine {
+  final String id;
   final bool isCustomer;
   final String text;
-  const _TranscriptLine({required this.isCustomer, required this.text});
+  final bool isFinal;
+  const _TranscriptLine({
+    required this.id,
+    required this.isCustomer,
+    required this.text,
+    required this.isFinal,
+  });
 }
 
 class VoiceCallView extends StatefulWidget {
@@ -72,6 +97,7 @@ class VoiceCallView extends StatefulWidget {
   final String? agentId;
   final String? conversationId;
   final String? businessId;
+  final ValueChanged<String>? onConversationId;
 
   const VoiceCallView({
     super.key,
@@ -80,6 +106,7 @@ class VoiceCallView extends StatefulWidget {
     this.agentId,
     this.conversationId,
     this.businessId,
+    this.onConversationId,
   });
 
   @override
@@ -93,34 +120,18 @@ class _VoiceCallViewState extends State<VoiceCallView>
   final _tts = FlutterTts();
   final _callNonce = _generateNonce();
   late final String _room;
-  late final int _tokenIssuedAt;
-  late final Map<String, dynamic> _claims;
-  Timer? _connectTimer;
+
+  Room? _rtcRoom;
+  EventsListener<RoomEvent>? _listener;
+
   Timer? _durationTimer;
-  Timer? _turnTimer;
-  _AgentActivity _activity = _AgentActivity.connecting;
+  _VoiceState _state = _VoiceState.idle;
+  String? _errorMessage;
   bool _micMuted = false;
   bool _speakerOn = true;
-  bool _demoBusy = false;
   Duration _elapsed = Duration.zero;
-  int _demoStep = 0;
 
   final _transcript = <_TranscriptLine>[];
-
-  static const _demoScript = [
-    (
-      customer: "I'd like to check my order status.",
-      agent: "Sure — could you share your order number?",
-    ),
-    (
-      customer: "It's ORD-48213.",
-      agent: "Thanks, one moment while I look that up…",
-    ),
-    (
-      customer: 'Also, can I change the delivery address?',
-      agent: "Of course — what's the new address?",
-    ),
-  ];
 
   @override
   void initState() {
@@ -129,6 +140,8 @@ class _VoiceCallViewState extends State<VoiceCallView>
       vsync: this,
       duration: const Duration(milliseconds: 1600),
     )..repeat();
+    _initTts();
+
     final identity = context.read<AuthRepository>().currentUser?.id ?? 'unknown';
     final apiClient = context.read<ApiClient>();
     _room = _generateRoomName(
@@ -137,7 +150,6 @@ class _VoiceCallViewState extends State<VoiceCallView>
       agentId: widget.agentId ?? 'unknown-agent',
       nonce: _callNonce,
     );
-    _tokenIssuedAt = _generateNowSeconds();
     final metadata = <String, dynamic>{
       'agentId': widget.agentId ?? '',
       'conversationId': widget.conversationId ?? '',
@@ -147,59 +159,173 @@ class _VoiceCallViewState extends State<VoiceCallView>
       'gosureToken': apiClient.accessToken ?? '',
       'language': WidgetsBinding.instance.platformDispatcher.locale.languageCode,
     };
-    _claims = _generateClaims(
+    AppLogger.i('VoiceCallView', 'callNonce=$_callNonce');
+    AppLogger.i('VoiceCallView', 'room=$_room');
+    AppLogger.i('VoiceCallView',
+        'call $_callNonce starting with agent "${widget.agentName}" (conversationId=${widget.conversationId}, businessId=${widget.businessId})');
+
+    final now = _generateNowSeconds();
+    final claims = _generateClaims(
       apiKey: '',
       identity: identity,
       room: _room,
-      now: _tokenIssuedAt,
+      now: now,
       metadata: metadata,
     );
-    final claimsForLog = {..._claims, 'metadata': redactJson(metadata)};
-    AppLogger.i('VoiceCallView', 'callNonce=$_callNonce');
-    AppLogger.i('VoiceCallView', 'room=$_room');
-    AppLogger.i('VoiceCallView', 'now=$_tokenIssuedAt header=$_jwtHeader');
+    final claimsForLog = {...claims, 'metadata': jsonEncode(redactJson(metadata))};
+    final signingInputForLog =
+        _generateSigningInput(header: _jwtHeader, claims: claimsForLog);
+    AppLogger.i('VoiceCallView', 'now=$now header=$_jwtHeader');
     AppLogger.i('VoiceCallView', 'claims=${jsonEncode(claimsForLog)}');
-    AppLogger.i('VoiceCallView',
-        'call $_callNonce started with agent "${widget.agentName}" (conversationId=${widget.conversationId}, businessId=${widget.businessId})');
-    _initTts();
-
-    _connectTimer = Timer(const Duration(milliseconds: 1300), () {
-      if (!mounted) return;
-      const greeting = "Hi! I'm ";
-      final line =
-          "$greeting${widget.agentName}. How can I help you today?";
-      setState(() {
-        _activity = _AgentActivity.speaking;
-        _transcript.add(_TranscriptLine(isCustomer: false, text: line));
-      });
-      _speak(line);
-      _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (!mounted) return;
-        setState(() => _elapsed += const Duration(seconds: 1));
-      });
-    });
+    AppLogger.i('VoiceCallView', 'signingInput=$signingInputForLog   ....');
+    AppLogger.i('VoiceCallView', 'connect() not called — diagnostic pass only');
   }
 
   Future<void> _initTts() async {
     await _tts.setLanguage('en-US');
     await _tts.setSpeechRate(0.48);
     await _tts.setPitch(1.0);
-    _tts.setCompletionHandler(_onSpeechDone);
-    _tts.setErrorHandler((msg) => _onSpeechDone());
-    _tts.setCancelHandler(_onSpeechDone);
   }
 
-  void _onSpeechDone() {
-    if (!mounted) return;
-    setState(() {
-      _activity = _AgentActivity.listening;
-      _demoBusy = false;
+  Future<void> _connect({
+    required ApiClient apiClient,
+    required String identity,
+    required Map<String, dynamic> metadata,
+  }) async {
+    setState(() => _state = _VoiceState.connecting);
+    try {
+      AppLogger.i('VoiceCallView', 'requesting token room=$_room identity=$identity');
+      final token = await fetchLiveKitToken(
+        apiClient,
+        room: _room,
+        identity: identity,
+        metadata: metadata,
+      );
+      AppLogger.i('VoiceCallView', 'token minted length=${token.length}');
+
+      final room = Room(
+        roomOptions: const RoomOptions(adaptiveStream: true, dynacast: true),
+      );
+      _rtcRoom = room;
+      _listener = room.createListener();
+      _wireRoomEvents(_listener!, room);
+
+      await room.connect(ServerUrls.livekitUrl, token);
+      AppLogger.i('VoiceCallView',
+          'room connected localParticipant=${room.localParticipant?.identity} remoteParticipants=${room.remoteParticipants.length}');
+
+      await room.localParticipant?.setMicrophoneEnabled(true);
+      Helper.setSpeakerphoneOn(_speakerOn);
+
+      if (!mounted) return;
+      setState(() => _state = _VoiceState.listening);
+      _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        setState(() => _elapsed += const Duration(seconds: 1));
+      });
+    } catch (e, st) {
+      AppLogger.e('VoiceCallView', 'connect failed', e, st);
+      if (!mounted) return;
+      setState(() {
+        _state = _VoiceState.error;
+        _errorMessage = _describeError(e);
+      });
+    }
+  }
+
+  String _describeError(Object error) {
+    final message = error.toString();
+    if (message.contains('not connected to a token-minting backend')) {
+      return "Voice mode isn't connected to a backend yet.";
+    }
+    if (message.toLowerCase().contains('permission')) {
+      return 'Microphone access was blocked. Allow it and try again.';
+    }
+    return 'Could not start voice mode.';
+  }
+
+  void _wireRoomEvents(EventsListener<RoomEvent> listener, Room room) {
+    listener.on<TrackSubscribedEvent>((e) {
+      AppLogger.i('VoiceCallView', 'track subscribed kind=${e.track.kind}');
+    });
+
+    listener.on<LocalTrackSubscribedEvent>((e) {
+      AppLogger.i('VoiceCallView', 'the agent subscribed to our track sid=${e.trackSid}');
+    });
+
+    listener.on<ParticipantConnectedEvent>((e) {
+      AppLogger.i('VoiceCallView', 'participant joined ${e.participant.identity}');
+    });
+
+    listener.on<ParticipantDisconnectedEvent>((e) {
+      AppLogger.i('VoiceCallView', 'participant left ${e.participant.identity}');
+      if (!mounted) return;
+      setState(() {
+        _state = _VoiceState.error;
+        _errorMessage = 'The voice agent left the call.';
+      });
+    });
+
+    listener.on<TranscriptionEvent>((e) {
+      final isCustomer = e.participant is LocalParticipant;
+      for (final segment in e.segments) {
+        _upsertTranscript(segment.id, isCustomer, segment.text, segment.isFinal);
+      }
+    });
+
+    listener.on<DataReceivedEvent>((e) {
+      _handleDataMessage(e.data);
+    });
+
+    listener.on<RoomDisconnectedEvent>((e) {
+      AppLogger.i('VoiceCallView', 'room disconnected reason=${e.reason}');
+      if (!mounted) return;
+      if (_state != _VoiceState.idle) {
+        setState(() {
+          _state = _VoiceState.error;
+          _errorMessage = 'The voice call dropped.';
+        });
+      }
     });
   }
 
-  Future<void> _speak(String text) async {
-    await _tts.stop();
-    await _tts.speak(text);
+  void _upsertTranscript(String id, bool isCustomer, String text, bool isFinal) {
+    if (!mounted) return;
+    setState(() {
+      final idx = _transcript.indexWhere((t) => t.id == id);
+      final line = _TranscriptLine(id: id, isCustomer: isCustomer, text: text, isFinal: isFinal);
+      if (idx >= 0) {
+        _transcript[idx] = line;
+      } else {
+        _transcript.add(line);
+      }
+    });
+    _scrollToEnd();
+  }
+
+  void _handleDataMessage(List<int> data) {
+    Map<String, dynamic> msg;
+    try {
+      msg = jsonDecode(utf8.decode(data)) as Map<String, dynamic>;
+    } catch (_) {
+      return;
+    }
+    AppLogger.i('VoiceCallView', 'data from worker: $msg');
+    if (!mounted) return;
+    final type = msg['type'] as String?;
+    if (type == 'state') {
+      final stateName = msg['state'] as String?;
+      final mapped = _VoiceState.values.where((s) => s.name == stateName).firstOrNull;
+      if (mapped != null) setState(() => _state = mapped);
+    } else if (type == 'conversation') {
+      final conversationId = msg['conversationId'] as String?;
+      if (conversationId != null) widget.onConversationId?.call(conversationId);
+    } else if (type == 'error') {
+      setState(() {
+        _state = _VoiceState.error;
+        _errorMessage = (msg['text'] as String?) ?? 'The voice agent hit an error.';
+      });
+    }
   }
 
   @override
@@ -208,9 +334,9 @@ class _VoiceCallViewState extends State<VoiceCallView>
     _pulseCtrl.dispose();
     _scrollCtrl.dispose();
     _tts.stop();
-    _connectTimer?.cancel();
     _durationTimer?.cancel();
-    _turnTimer?.cancel();
+    _listener?.cancelAll();
+    _rtcRoom?.disconnect();
     super.dispose();
   }
 
@@ -223,35 +349,20 @@ class _VoiceCallViewState extends State<VoiceCallView>
     );
   }
 
-  void _simulateDemoTurn() {
-    if (_activity == _AgentActivity.connecting || _demoBusy) return;
-    final turn = _demoScript[_demoStep % _demoScript.length];
-    _demoStep++;
-    setState(() {
-      _demoBusy = true;
-      _activity = _AgentActivity.listening;
-      _transcript.add(_TranscriptLine(isCustomer: true, text: turn.customer));
-    });
-    _scrollToEnd();
-    _turnTimer = Timer(const Duration(milliseconds: 900), () {
-      if (!mounted) return;
-      setState(() {
-        _activity = _AgentActivity.speaking;
-        _transcript.add(_TranscriptLine(isCustomer: false, text: turn.agent));
-      });
-      _scrollToEnd();
-      _speak(turn.agent);
-    });
-  }
-
   String _statusLabel() {
-    switch (_activity) {
-      case _AgentActivity.connecting:
+    switch (_state) {
+      case _VoiceState.idle:
+        return 'Idle';
+      case _VoiceState.connecting:
         return 'Connecting…';
-      case _AgentActivity.listening:
+      case _VoiceState.listening:
         return _micMuted ? 'Mic muted' : 'Listening…';
-      case _AgentActivity.speaking:
+      case _VoiceState.thinking:
+        return '${widget.agentName} is thinking…';
+      case _VoiceState.speaking:
         return '${widget.agentName} is speaking…';
+      case _VoiceState.error:
+        return _errorMessage ?? 'Something went wrong.';
     }
   }
 
@@ -306,26 +417,39 @@ class _VoiceCallViewState extends State<VoiceCallView>
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Column(
         children: [
-          GestureDetector(onTap: _simulateDemoTurn, child: _orb()),
+          _orb(),
           const SizedBox(height: 12),
           Text(widget.agentName,
               style: AppFonts.display(size: 17, color: Colors.white)),
           const SizedBox(height: 3),
           Text(
-            _activity == _AgentActivity.connecting
+            _state == _VoiceState.connecting || _state == _VoiceState.error
                 ? _statusLabel()
                 : '${_statusLabel()} · ${_durationLabel()}',
+            textAlign: TextAlign.center,
             style:
                 AppFonts.body(size: 12.5, color: Colors.white.withOpacity(0.7)),
           ),
+          if (_state == _VoiceState.error) ...[
+            const SizedBox(height: 12),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: Colors.white.withOpacity(0.4)),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
         ],
       ),
     );
   }
 
   Widget _orb() {
-    final speaking = _activity == _AgentActivity.speaking;
-    final connecting = _activity == _AgentActivity.connecting;
+    final speaking = _state == _VoiceState.speaking;
+    final connecting = _state == _VoiceState.connecting;
+    final error = _state == _VoiceState.error;
     return SizedBox(
       width: 140,
       height: 140,
@@ -335,17 +459,20 @@ class _VoiceCallViewState extends State<VoiceCallView>
           return Stack(
             alignment: Alignment.center,
             children: [
-              for (final ringIndex in [0, 1, 2])
-                _ring(ringIndex, speaking: speaking, connecting: connecting),
+              if (!connecting && !error)
+                for (final ringIndex in [0, 1, 2])
+                  _ring(ringIndex, speaking: speaking),
               Container(
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: AppColors.appPrimaryGradient,
+                  gradient: error ? null : AppColors.appPrimaryGradient,
+                  color: error ? const Color(0xFFE94B4B) : null,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.appPrimaryColor.withOpacity(0.5),
+                      color: (error ? const Color(0xFFE94B4B) : AppColors.appPrimaryColor)
+                          .withOpacity(0.5),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -359,7 +486,8 @@ class _VoiceCallViewState extends State<VoiceCallView>
                         child: CircularProgressIndicator(
                             strokeWidth: 2.2, color: Colors.white),
                       )
-                    : Icon(widget.agentIcon, color: Colors.white, size: 28),
+                    : Icon(error ? Icons.mic_off : widget.agentIcon,
+                        color: Colors.white, size: 28),
               ),
             ],
           );
@@ -368,8 +496,7 @@ class _VoiceCallViewState extends State<VoiceCallView>
     );
   }
 
-  Widget _ring(int index, {required bool speaking, required bool connecting}) {
-    if (connecting) return const SizedBox.shrink();
+  Widget _ring(int index, {required bool speaking}) {
     final speed = speaking ? 0.62 : 1.0;
     final phase = index / 3;
     final t = ((_pulseCtrl.value / speed) + phase) % 1.0;
@@ -398,7 +525,9 @@ class _VoiceCallViewState extends State<VoiceCallView>
     if (_transcript.isEmpty) {
       return Center(
         child: Text(
-          'Tap the orb to preview a demo exchange —\nreal transcription arrives once LiveKit is wired in.',
+          _state == _VoiceState.error
+              ? ''
+              : "The conversation transcript will appear here once you're connected.",
           textAlign: TextAlign.center,
           style: AppFonts.body(size: 12, color: Colors.white.withOpacity(0.45))
               .copyWith(height: 1.5),
@@ -440,7 +569,9 @@ class _VoiceCallViewState extends State<VoiceCallView>
             ),
             child: Text(
               line.text,
-              style: AppFonts.body(size: 13.5, color: Colors.white),
+              style: AppFonts.body(
+                  size: 13.5,
+                  color: line.isFinal ? Colors.white : Colors.white.withOpacity(0.6)),
             ),
           ),
         ],
@@ -449,6 +580,7 @@ class _VoiceCallViewState extends State<VoiceCallView>
   }
 
   Widget _controls() {
+    final connected = _rtcRoom != null && _state != _VoiceState.error;
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       child: Row(
@@ -458,14 +590,25 @@ class _VoiceCallViewState extends State<VoiceCallView>
             icon: _micMuted ? Icons.mic_off : Icons.mic_none,
             label: _micMuted ? 'Unmute' : 'Mute',
             active: _micMuted,
-            onTap: () => setState(() => _micMuted = !_micMuted),
+            onTap: connected
+                ? () async {
+                    final next = !_micMuted;
+                    await _rtcRoom?.localParticipant?.setMicrophoneEnabled(!next);
+                    if (!mounted) return;
+                    setState(() => _micMuted = next);
+                  }
+                : null,
           ),
           _endCallButton(),
           _controlButton(
             icon: _speakerOn ? Icons.volume_up_outlined : Icons.hearing,
             label: _speakerOn ? 'Speaker' : 'Earpiece',
             active: !_speakerOn,
-            onTap: () => setState(() => _speakerOn = !_speakerOn),
+            onTap: () {
+              final next = !_speakerOn;
+              Helper.setSpeakerphoneOn(next);
+              setState(() => _speakerOn = next);
+            },
           ),
         ],
       ),
@@ -476,8 +619,9 @@ class _VoiceCallViewState extends State<VoiceCallView>
     required IconData icon,
     required String label,
     required bool active,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
   }) {
+    final enabled = onTap != null;
     return Column(
       children: [
         InkWell(
@@ -488,11 +632,13 @@ class _VoiceCallViewState extends State<VoiceCallView>
             height: 58,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: active ? Colors.white : Colors.white.withOpacity(0.14),
+              color: active ? Colors.white : Colors.white.withOpacity(enabled ? 0.14 : 0.06),
             ),
             alignment: Alignment.center,
             child: Icon(icon,
-                color: active ? AppColors.appPrimaryDarkColor : Colors.white,
+                color: active
+                    ? AppColors.appPrimaryDarkColor
+                    : Colors.white.withOpacity(enabled ? 1 : 0.4),
                 size: 24),
           ),
         ),

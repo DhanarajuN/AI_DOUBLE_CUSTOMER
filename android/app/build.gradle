@@ -27,7 +27,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.gosure.aidouble.customer"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = "25.1.8937393"
 
     compileOptions {
